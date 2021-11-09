@@ -1,1 +1,1 @@
-# music-transformer
+# fast-transformer-music
