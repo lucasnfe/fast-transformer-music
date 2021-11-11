@@ -17,12 +17,14 @@ RANGE_NOTE_ON = 128
 RANGE_NOTE_OFF = 128
 RANGE_VEL = 32
 RANGE_TIME_SHIFT = 100
+RANGE_SPECIAL = 2
 
 START_IDX = {
     'note_on': 0,
     'note_off': RANGE_NOTE_ON,
     'time_shift': RANGE_NOTE_ON + RANGE_NOTE_OFF,
-    'velocity': RANGE_NOTE_ON + RANGE_NOTE_OFF + RANGE_TIME_SHIFT
+    'velocity': RANGE_NOTE_ON + RANGE_NOTE_OFF + RANGE_TIME_SHIFT,
+    'special': RANGE_NOTE_ON + RANGE_NOTE_OFF + RANGE_TIME_SHIFT + RANGE_VEL
 }
 
 MIDI_EXTENSIONS = [".mid", ".midi"]
@@ -54,7 +56,7 @@ class SustainDownManager:
 # Divided note by note_on, note_off
 class SplitNote:
     def __init__(self, type, time, value, velocity):
-        ## type: note_on, note_off
+        # type: note_on, note_off
         self.type = type
         self.time = time
         self.velocity = velocity
@@ -85,6 +87,7 @@ class Event:
         range_note_on = range(0, RANGE_NOTE_ON)
         range_note_off = range(RANGE_NOTE_ON, RANGE_NOTE_ON+RANGE_NOTE_OFF)
         range_time_shift = range(RANGE_NOTE_ON+RANGE_NOTE_OFF,RANGE_NOTE_ON+RANGE_NOTE_OFF+RANGE_TIME_SHIFT)
+        range_velocity = range(RANGE_NOTE_ON+RANGE_NOTE_OFF+RANGE_TIME_SHIFT,RANGE_NOTE_ON+RANGE_NOTE_OFF+RANGE_TIME_SHIFT+RANGE_VEL)
 
         valid_value = int_value
 
@@ -96,9 +99,12 @@ class Event:
         elif int_value in range_time_shift:
             valid_value -= (RANGE_NOTE_ON + RANGE_NOTE_OFF)
             return {'type': 'time_shift', 'value': valid_value}
+        elif int_value in range_velocity:
+            valid_value -= (RANGE_NOTE_ON + RANGE_NOTE_OFF + RANGE_TIME_SHIFT)
+            return {'type': 'velocity', 'value': valid_value}
 
-        valid_value -= (RANGE_NOTE_ON + RANGE_NOTE_OFF + RANGE_TIME_SHIFT)
-        return {'type': 'velocity', 'value': valid_value}
+        valid_value -= (RANGE_NOTE_ON + RANGE_NOTE_OFF + RANGE_TIME_SHIFT + RANGE_VEL)
+        return {'type': 'special', 'value': valid_value}
 
 def _divide_note(notes):
     result_array = []
@@ -113,17 +119,22 @@ def _divide_note(notes):
 
 def _merge_note(snote_sequence):
     note_on_dict = {}
-    result_array = []
 
+    result_array = []
     for snote in snote_sequence:
         if snote.type == 'note_on':
             note_on_dict[snote.value] = snote
         elif snote.type == 'note_off':
             try:
+                # Get associated note_on time
                 on = note_on_dict[snote.value]
+
+                # Get note_off time
                 off = snote
                 if off.time - on.time == 0:
                     continue
+
+                # Create pretty_midi note from the note_on and note_off times
                 result = pretty_midi.Note(on.velocity, snote.value, on.time, off.time)
                 result_array.append(result)
             except:
@@ -151,6 +162,8 @@ def _event_seq2snote_seq(event_sequence):
             timeline += ((event.value+1) / 100)
         if event.type == 'velocity':
             velocity = event.value * 4
+        if event.type == 'special':
+            continue
         else:
             snote = SplitNote(event.type, timeline, event.value, velocity)
             snote_seq.append(snote)
@@ -235,7 +248,7 @@ def load_midi_dir(dir_path):
             if extension.lower() in MIDI_EXTENSIONS:
                 encoded_midi = _load_midi_file(os.path.join(dir, f))
                 # Uncomment this to test the encoded midi
-                # decode_midi(encoded_midi, os.path.join("decoded", f))
+                decode_midi(encoded_midi, os.path.join("decoded", f))
 
 def encode_midi(file_path):
     events = []
@@ -261,7 +274,14 @@ def encode_midi(file_path):
         cur_time = snote.time
         cur_vel = snote.velocity
 
-    return [e.to_int() for e in events]
+    # Make sure the encoded midi is not empty
+    assert len(events) > 0
+
+    # Create start and end events
+    start = Event(event_type="special", value=0)
+    end = Event(event_type="special", value=1)
+
+    return [start.to_int()] + [e.to_int() for e in events] + [end.to_int()]
 
 def decode_midi(idx_array, file_path=None):
     event_sequence = [Event.from_int(idx) for idx in idx_array]
