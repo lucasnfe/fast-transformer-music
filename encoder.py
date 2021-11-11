@@ -1,3 +1,14 @@
+#
+# Encoder based on PerformanceRNN & Music Transformer to process
+# MIDI data with neural networks.
+#
+# Author: Lucas N. Ferreira - lucasnfe@gmail.com
+#
+# PerformanceRNN: https://magenta.tensorflow.org/performance-rnn
+# Music Transformer: https://magenta.tensorflow.org/music-transformer
+# Base code: https://github.com/jason9693/midi-neural-processor
+#
+
 import os
 import argparse
 import pretty_midi
@@ -105,7 +116,6 @@ def _merge_note(snote_sequence):
     result_array = []
 
     for snote in snote_sequence:
-        # print(note_on_dict)
         if snote.type == 'note_on':
             note_on_dict[snote.value] = snote
         elif snote.type == 'note_off':
@@ -165,11 +175,11 @@ def _control_preprocess(ctrl_changes):
 
     manager = None
     for ctrl in ctrl_changes:
+        # sustain down
         if ctrl.value >= 64 and manager is None:
-            # sustain down
             manager = SustainDownManager(start=ctrl.time, end=None)
+        # sustain up
         elif ctrl.value < 64 and manager is not None:
-            # sustain up
             manager.end = ctrl.time
             sustains.append(manager)
             manager = None
@@ -196,6 +206,7 @@ def _note_preprocess(susteins, notes):
 
         for sustain in susteins:
             note_stream += sustain.managed_notes
+
     # else, just push everything into note stream
     else:
         for note_idx, note in enumerate(notes):
@@ -205,23 +216,26 @@ def _note_preprocess(susteins, notes):
     return note_stream
 
 def _load_midi_file(file_path):
-    encoded_midi = None
+    encoded_midi = encode_midi(file_path)
 
-    filename, extension = os.path.splitext(file_path)
-    if extension.lower() in MIDI_EXTENSIONS:
-        encoded_midi = encode_midi(file_path)
+    # Make sure the encoded midi is not empty
+    assert len(encoded_midi) > 0
 
-        # Save txt version of the midi file to load it faster during training
-        with open(filename + ".txt", "w") as midi_txt_file:
-            midi_txt_file.write(" ".join(str(token) for token in encoded_midi))
+    # Save txt version of the midi file to load it faster during training
+    filename, _ = os.path.splitext(file_path)
+    with open(filename + ".txt", "w") as midi_txt_file:
+        midi_txt_file.write(" ".join(str(token) for token in encoded_midi))
 
     return encoded_midi
 
 def load_midi_dir(dir_path):
-    for f in os.listdir(dir_path):
-        full_path = os.path.join(dir_path, f)
-        if os.path.isfile(full_path):
-            encoded = _load_midi_file(full_path)
+    for dir, _ , files in os.walk(dir_path):
+        for i,f in enumerate(files):
+            filename, extension = os.path.splitext(f)
+            if extension.lower() in MIDI_EXTENSIONS:
+                encoded_midi = _load_midi_file(os.path.join(dir, f))
+                # Uncomment this to test the encoded midi
+                # decode_midi(encoded_midi, os.path.join("decoded", f))
 
 def encode_midi(file_path):
     events = []
