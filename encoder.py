@@ -86,8 +86,8 @@ class Event:
     def _type_check(int_value):
         range_note_on = range(0, RANGE_NOTE_ON)
         range_note_off = range(RANGE_NOTE_ON, RANGE_NOTE_ON+RANGE_NOTE_OFF)
-        range_time_shift = range(RANGE_NOTE_ON+RANGE_NOTE_OFF,RANGE_NOTE_ON+RANGE_NOTE_OFF+RANGE_TIME_SHIFT)
-        range_velocity = range(RANGE_NOTE_ON+RANGE_NOTE_OFF+RANGE_TIME_SHIFT,RANGE_NOTE_ON+RANGE_NOTE_OFF+RANGE_TIME_SHIFT+RANGE_VEL)
+        range_time_shift = range(RANGE_NOTE_ON+RANGE_NOTE_OFF, RANGE_NOTE_ON+RANGE_NOTE_OFF+RANGE_TIME_SHIFT)
+        range_velocity = range(RANGE_NOTE_ON+RANGE_NOTE_OFF+RANGE_TIME_SHIFT, RANGE_NOTE_ON+RANGE_NOTE_OFF+RANGE_TIME_SHIFT+RANGE_VEL)
 
         valid_value = int_value
 
@@ -244,23 +244,28 @@ def _load_midi_file(file_path):
 def load_midi_dir(dir_path):
     for dir, _ , files in os.walk(dir_path):
         for i,f in enumerate(files):
+            # Check that file has valid midi extension
             filename, extension = os.path.splitext(f)
+
             if extension.lower() in MIDI_EXTENSIONS:
                 encoded_midi = _load_midi_file(os.path.join(dir, f))
+
                 # Uncomment this to test the encoded midi
-                decode_midi(encoded_midi, os.path.join("decoded", f))
+                # decode_midi(encoded_midi, os.path.join("decoded", f))
 
 def encode_midi(file_path):
-    events = []
     notes = []
-    mid = pretty_midi.PrettyMIDI(midi_file=file_path)
+    events = []
 
+    mid = pretty_midi.PrettyMIDI(midi_file=file_path)
     for inst in mid.instruments:
-        inst_notes = inst.notes
-        # ctrl.number is the number of sustain control. If you want to know abour the number type of control,
-        # see https://www.midi.org/specifications-old/item/table-3-control-change-messages-data-bytes-2
+        # Only consider instruments from the piano family
+        assert pretty_midi.program_to_instrument_class(inst.program) == "Piano"
+
+        # ctrl.number is the number of sustain control:
+        # https://www.midi.org/specifications-old/item/table-3-control-change-messages-data-bytes-2
         ctrls = _control_preprocess([ctrl for ctrl in inst.control_changes if ctrl.number == 64])
-        notes += _note_preprocess(ctrls, inst_notes)
+        notes += _note_preprocess(ctrls, inst.notes)
 
     dnotes = _divide_note(notes)
     dnotes.sort(key=lambda x: x.time)

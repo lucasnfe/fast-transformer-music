@@ -9,7 +9,6 @@ from model import MusicGenerator
 
 def _load_txt(file_path):
     loaded_list = []
-
     with open(file_path) as f:
         loaded_list = [int(token) for token in f.read().split()]
 
@@ -17,23 +16,15 @@ def _load_txt(file_path):
 
 def load_txt_dir(dir_path):
     data = []
-
     for file_path in os.listdir(dir_path):
         full_path = os.path.join(dir_path, file_path)
-
         if os.path.isfile(full_path):
             file_name, extension = os.path.splitext(file_path)
-
             if extension.lower() == ".txt":
                 encoded = _load_txt(full_path)
-                data.append(encoded)
+                data += encoded
 
     return data
-
-def data_stats(data):
-    print("Min length:", min([len(ex) for ex in data]))
-    print("Max length:", max([len(ex) for ex in data]))
-    print("Mean length:", sum([len(ex) for ex in data])/len(data))
 
 def batchfy_data(data, batch_size):
     seq_len = data.size(0) // batch_size
@@ -140,9 +131,6 @@ if __name__ == '__main__':
     # Load data as a flat tensors
     train_data = load_txt_dir(opt.train)
     test_data = load_txt_dir(opt.test)
-
-    # Print data stats
-    data_stats(train_data + test_data)
 
     # Compute vocab size
     vocab_size = max(train_data + test_data) + 1
