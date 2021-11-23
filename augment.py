@@ -8,7 +8,6 @@
 #
 
 import os
-import copy
 import argparse
 import pretty_midi
 
@@ -77,6 +76,10 @@ def strech(in_file_path, stretch_factors, out_file_path):
         streched_mid.write(filename + strech_name + ".mid")
 
 def augment_midi_data(midi_path, transpose_intervals, stretch_factors):
+    # Create midi_path augmented version
+    augmented_path = os.path.dirname(midi_path) + "_augmented"
+    os.makedirs(augmented_path, exist_ok=True)
+
     # Get dir content outside for to avoid infinite loop
     dir_content = os.walk(midi_path)
 
@@ -84,13 +87,13 @@ def augment_midi_data(midi_path, transpose_intervals, stretch_factors):
         # Create augmented folder
         if has_midi_files(dir):
             # Only create augmented versions of directories with midi files
-            dir_augmented = dir + "_augmented"
-            os.makedirs(dir + "_augmented", exist_ok=True)
+            dir_augmented = os.sep.join(os.path.normpath(dir).split(os.sep)[1:])
+            dir_augmented = os.path.join(augmented_path, dir_augmented)
+            os.makedirs(dir_augmented, exist_ok=True)
 
             for i,f in enumerate(files):
                 # Check that file has valid midi extension
                 filename, extension = os.path.splitext(f)
-
                 if extension.lower() in MIDI_EXTENSIONS:
                     in_file_path = os.path.join(dir, f)
                     out_file_path = os.path.join(dir_augmented, f)
