@@ -62,13 +62,13 @@ def strech(in_file_path, stretch_factors, out_file_path):
                 # stretch note end time
                 note.end *= sf
 
-        if sf < 0:
+        if sf < 1:
             # This is a slower version
             strech_name = "_slow_" + str(int(sf * 1000))
-        elif sf == 0:
+        elif sf == 1:
             # This is the original version
             strech_name = "_original"
-        elif sf > 0:
+        elif sf > 1:
             # This is a faster version
             strech_name = "_fast_" + str(int(sf * 1000))
 
