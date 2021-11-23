@@ -260,8 +260,7 @@ def encode_midi(file_path):
     mid = pretty_midi.PrettyMIDI(midi_file=file_path)
     for inst in mid.instruments:
         # Only consider instruments from the piano family
-        assert pretty_midi.program_to_instrument_class(inst.program) == "Piano",
-               "File " + file_path + "contains a non-piano instrument."
+        assert pretty_midi.program_to_instrument_class(inst.program) == "Piano", "File " + file_path + "contains a non-piano instrument."
 
         # ctrl.number is the number of sustain control:
         # https://www.midi.org/specifications-old/item/table-3-control-change-messages-data-bytes-2
