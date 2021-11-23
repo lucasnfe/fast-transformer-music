@@ -260,12 +260,11 @@ def encode_midi(file_path):
     mid = pretty_midi.PrettyMIDI(midi_file=file_path)
     for inst in mid.instruments:
         # Only consider instruments from the piano family
-        assert pretty_midi.program_to_instrument_class(inst.program) == "Piano"
-
-        # ctrl.number is the number of sustain control:
-        # https://www.midi.org/specifications-old/item/table-3-control-change-messages-data-bytes-2
-        ctrls = _control_preprocess([ctrl for ctrl in inst.control_changes if ctrl.number == 64])
-        notes += _note_preprocess(ctrls, inst.notes)
+        if pretty_midi.program_to_instrument_class(inst.program) == "Piano":
+            # ctrl.number is the number of sustain control:
+            # https://www.midi.org/specifications-old/item/table-3-control-change-messages-data-bytes-2
+            ctrls = _control_preprocess([ctrl for ctrl in inst.control_changes if ctrl.number == 64])
+            notes += _note_preprocess(ctrls, inst.notes)
 
     dnotes = _divide_note(notes)
     dnotes.sort(key=lambda x: x.time)
