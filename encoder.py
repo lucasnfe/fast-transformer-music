@@ -232,7 +232,7 @@ def _load_midi_file(file_path):
     encoded_midi = encode_midi(file_path)
 
     # Make sure the encoded midi is not empty
-    assert len(encoded_midi) > 0
+    assert len(encoded_midi) > 0, file_path + " does not have any MIDI events."
 
     # Save txt version of the midi file to load it faster during training
     filename, _ = os.path.splitext(file_path)
@@ -260,7 +260,7 @@ def encode_midi(file_path):
     mid = pretty_midi.PrettyMIDI(midi_file=file_path)
     for inst in mid.instruments:
         # Only consider instruments from the piano family
-        assert pretty_midi.program_to_instrument_class(inst.program) == "Piano", "File " + file_path + " contains a non-piano instrument."
+        assert pretty_midi.program_to_instrument_class(inst.program) == "Piano", file_path + " contains a non-piano instrument."
 
         # ctrl.number is the number of sustain control:
         # https://www.midi.org/specifications-old/item/table-3-control-change-messages-data-bytes-2
@@ -280,7 +280,7 @@ def encode_midi(file_path):
         cur_vel = snote.velocity
 
     # Make sure the encoded midi is not empty
-    assert len(events) > 0
+    assert len(events) > 0, file_path + " does not have any MIDI events."
 
     # Create start and end events
     start = Event(event_type="special", value=0)
