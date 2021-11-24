@@ -91,11 +91,11 @@ def train_step(model, train_data, epoch, bptt, vocab_size, lr, criterion, optimi
         # Log training statistics
         total_loss += loss.item()
         if batch % log_interval == 0 and batch > 0:
-            log_stats(optimizer, epoch, total_loss, start_time, log_interval)
+            log_stats(optimizer, epoch, batch, total_loss, start_time, log_interval)
             total_loss = 0
             start_time = time.time()
 
-def log_stats(optimizer, epoch, total_loss, start_time, log_interval):
+def log_stats(optimizer, epoch, batch, total_loss, start_time, log_interval):
     # Get current learning rate
     lr = optimizer.param_groups[0]['lr']
 
