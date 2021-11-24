@@ -44,12 +44,11 @@ def train(model, train_data, test_data, bptt, vocab_size, epochs=100, lr=0.001):
 
     criterion = torch.nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 1.0, gamma=0.95)
 
     for epoch in range(1, epochs + 1):
         epoch_start_time = time.time()
 
-        train_step(model, train_data, epoch, bptt, vocab_size, lr, criterion, optimizer, scheduler)
+        train_step(model, train_data, epoch, bptt, vocab_size, lr, criterion, optimizer)
 
         val_loss = evaluate(model, test_data, bptt, vocab_size, criterion)
         val_ppl = math.exp(val_loss)
@@ -65,44 +64,46 @@ def train(model, train_data, test_data, bptt, vocab_size, epochs=100, lr=0.001):
             best_val_loss = val_loss
             best_model = copy.deepcopy(model)
 
-        scheduler.step()
-
     return best_model
 
-def train_step(model, train_data, epoch, bptt, vocab_size, lr, criterion, optimizer, scheduler, log_interval=100):
+def train_step(model, train_data, epoch, bptt, vocab_size, lr, criterion, optimizer, log_interval=100):
     model.train()
-    total_loss = 0.0
+    total_loss = 0
 
     start_time = time.time()
 
     num_batches = len(train_data) // bptt
     for batch, i in enumerate(range(0, train_data.size(0) - 1, bptt)):
-        data, targets = get_batch(train_data, i, bptt)
+        # Get current batch
+        x, y = get_batch(train_data, i, bptt)
+
+        optimizer.zero_grad()
 
         # Forward pass
-        output = model(data)
-        loss = criterion(output.view(-1, vocab_size), targets)
+        y_hat = model(x)
 
         # Backward pass
-        optimizer.zero_grad()
+        loss = criterion(y_hat.view(-1, vocab_size), y)
         loss.backward()
-        torch.nn.utils.clip_grad_norm_(model.parameters(), 0.5)
+
         optimizer.step()
 
         # Log training statistics
         total_loss += loss.item()
         if batch % log_interval == 0 and batch > 0:
-            lr = scheduler.get_last_lr()[0]
-            ms_per_batch = (time.time() - start_time) * 1000 / log_interval
-            cur_loss = total_loss / log_interval
-            ppl = math.exp(cur_loss)
-
-            print(f'| epoch {epoch:3d} | {batch:5d}/{num_batches:5d} batches | '
-                  f'lr {lr:02.2f} | ms/batch {ms_per_batch:5.2f} | '
-                  f'loss {cur_loss:5.2f} | ppl {ppl:8.2f}')
-
+            log_stats(optimizer, total_loss, start_time, log_interval)
             total_loss = 0
             start_time = time.time()
+
+def log_stats(optimizer, total_loss, start_time, log_interval):
+    lr = optimizer.get_lr()[0]
+    ms_per_batch = (time.time() - start_time) * 1000 / log_interval
+    cur_loss = total_loss / log_interval
+    ppl = math.exp(cur_loss)
+
+    print(f'| epoch {epoch:3d} | {batch:5d}/{num_batches:5d} batches | '
+          f'lr {lr:02.2f} | ms/batch {ms_per_batch:5.2f} | '
+          f'loss {cur_loss:5.2f} | ppl {ppl:8.2f}')
 
 def evaluate(model, test_data, bptt, vocab_size, criterion):
     model.eval()
@@ -142,10 +143,10 @@ if __name__ == '__main__':
     # Build linear transformer
     model = MusicGenerator(n_tokens=vocab_size,
                                 d_model=256,
-                                seq_len=2048,
+                                seq_len=128,
                          attention_type="causal-linear",
                                n_layers=2,
                                 n_heads=8).to(device)
 
     # Train model
-    trained_model = train(model, train_data, test_data, bptt=2048, vocab_size=vocab_size)
+    trained_model = train(model, train_data, test_data, bptt=128, vocab_size=vocab_size)
