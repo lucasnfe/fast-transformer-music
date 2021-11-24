@@ -11,18 +11,20 @@
 Clone the VGMIDI dataset repository, go to the unabelled pieces directory and
 extract the `midi.zip` file:
 
-`git clone
- cd vgmidi/unlabelled
- unzip midi.zip
-`
+```
+git clone
+cd vgmidi/unlabelled
+unzip midi.zip
+```
 
 ### 2. Split the dataset
 
 Go to the `src` directory of unabelled pieces and run the `midi_split` script:
 
-`cd unlabelled/src
- python3 midi_split.py --csv ../../vgmidi_unlabelled.csv --midi ../midi
-`
+```
+cd unlabelled/src
+python3 midi_split.py --csv ../../vgmidi_unlabelled.csv --midi ../midi
+```
 
 ### 3. Data Augmentation
 
