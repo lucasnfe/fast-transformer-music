@@ -49,7 +49,7 @@ def train(model, train_data, test_data, bptt, vocab_size, epochs=100, lr=0.001):
     for epoch in range(1, epochs + 1):
         epoch_start_time = time.time()
 
-        train_step(model, train_data, bptt, vocab_size, lr, criterion, optimizer, scheduler)
+        train_step(model, train_data, epoch, bptt, vocab_size, lr, criterion, optimizer, scheduler)
 
         val_loss = evaluate(model, test_data, bptt, vocab_size, criterion)
         val_ppl = math.exp(val_loss)
@@ -69,7 +69,7 @@ def train(model, train_data, test_data, bptt, vocab_size, epochs=100, lr=0.001):
 
     return best_model
 
-def train_step(model, train_data, bptt, vocab_size, lr, criterion, optimizer, scheduler, log_interval=5):
+def train_step(model, train_data, epoch, bptt, vocab_size, lr, criterion, optimizer, scheduler, log_interval=100):
     model.train()
     total_loss = 0.0
 
