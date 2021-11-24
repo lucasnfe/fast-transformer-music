@@ -91,14 +91,21 @@ def train_step(model, train_data, epoch, bptt, vocab_size, lr, criterion, optimi
         # Log training statistics
         total_loss += loss.item()
         if batch % log_interval == 0 and batch > 0:
-            log_stats(optimizer, total_loss, start_time, log_interval)
+            log_stats(optimizer, epoch, total_loss, start_time, log_interval)
             total_loss = 0
             start_time = time.time()
 
-def log_stats(optimizer, total_loss, start_time, log_interval):
-    lr = optimizer.get_lr()[0]
+def log_stats(optimizer, epoch, total_loss, start_time, log_interval):
+    # Get current learning rate
+    lr = optimizer.param_groups[0]['lr']
+
+    # Compute duration of each batch
     ms_per_batch = (time.time() - start_time) * 1000 / log_interval
+
+    # Compute current loss
     cur_loss = total_loss / log_interval
+
+    # compute current perplexity
     ppl = math.exp(cur_loss)
 
     print(f'| epoch {epoch:3d} | {batch:5d}/{num_batches:5d} batches | '
