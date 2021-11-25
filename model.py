@@ -12,22 +12,21 @@ from fast_transformers.masking import LengthMask, TriangularCausalMask
 from fast_transformers.builders import TransformerEncoderBuilder
 
 class PositionalEncoding(torch.nn.Module):
-    def __init__(self, d_model, dropout=0.0, max_len=5000):
-        super(PositionalEncoding, self).__init__()
+    def __init__(self, d_model, dropout = 0.1, max_len = 5000):
+        super().__init__()
         self.dropout = torch.nn.Dropout(p=dropout)
-        self.d_model = d_model
-        pe = torch.zeros(max_len, d_model)
-        position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
-        div_term = torch.exp(torch.arange(0, d_model, 2).float() * (-math.log(10000.0) / d_model))
-        pe[:, 0::2] = torch.sin(position * div_term)
-        pe[:, 1::2] = torch.cos(position * div_term)
-        pe = pe.unsqueeze(0)
+
+        position = torch.arange(max_len).unsqueeze(1)
+        div_term = torch.exp(torch.arange(0, d_model, 2) * (-math.log(10000.0) / d_model))
+
+        pe = torch.zeros(max_len, 1, d_model)
+        pe[:, 0, 0::2] = torch.sin(position * div_term)
+        pe[:, 0, 1::2] = torch.cos(position * div_term)
+
         self.register_buffer('pe', pe)
 
     def forward(self, x):
-        pos_embedding = self.pe[:, :x.size(1), :]
-        pos_embedding = torch.repeat_interleave(pos_embedding, x.shape[0], dim=0)
-        x = torch.cat([x, pos_embedding], dim=2)
+        x = x + self.pe[:x.size(0)]
         return self.dropout(x)
 
 class MusicGenerator(torch.nn.Module):
@@ -40,8 +39,8 @@ class MusicGenerator(torch.nn.Module):
 
         super(MusicGenerator, self).__init__()
 
-        self.pos_embedding = PositionalEncoding(d_model//2, max_len=seq_len)
-        self.value_embedding = torch.nn.Embedding(n_tokens, d_model//2)
+        self.pos_embedding = PositionalEncoding(d_model, max_len=seq_len)
+        self.value_embedding = torch.nn.Embedding(n_tokens, d_model)
 
         self.transformer = TransformerEncoderBuilder.from_kwargs(
             attention_type=attention_type,
