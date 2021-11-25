@@ -48,18 +48,15 @@ def train_step(model, train_data, epoch, lr, criterion, optimizer, log_interval=
     start_time = time.time()
 
     for batch, (x, y) in enumerate(train_data):
+        # Forward pass
         x = x.to(device)
         y = y.to(device)
-
-        optimizer.zero_grad()
-
-        # Forward pass
         y_hat = model(x)
 
         # Backward pass
+        optimizer.zero_grad()
         loss = criterion(y_hat.view(-1, vocab_size), y)
         loss.backward()
-
         optimizer.step()
 
         # Log training statistics
@@ -110,8 +107,11 @@ if __name__ == '__main__':
     parser.add_argument('--train', type=str, required=True, help="Path to train data directory.")
     parser.add_argument('--test', type=str, required=True, help="Path to test data directory.")
     parser.add_argument('--seq_len', type=int, required=True, help="Max sequence to process.")
-    parser.add_argument('--epochs', type=int, required=True, help="Epochs to train.")
-    parser.add_argument('--lr', type=float, required=True, help="Learning rate.")
+    parser.add_argument('--epochs', type=int, default=100, help="Epochs to train.")
+    parser.add_argument('--n_layers', type=int, default=4, help="Number of transformer layers.")
+    parser.add_argument('--n_heads', type=int, default=8, help="Number of attention heads.")
+    parser.add_argument('--d_query', type=int, default=32, help="Dimension of the query matrix.")
+    parser.add_argument('--lr', type=float, default=0.0001, help="Learning rate.")
     opt = parser.parse_args()
 
     # Set up torch device
@@ -130,11 +130,11 @@ if __name__ == '__main__':
 
     # Build linear transformer
     model = MusicGenerator(n_tokens=vocab_size,
-                                d_model=256,
+                                d_model=opt.d_query * opt.n_heads,
                                 seq_len=opt.seq_len,
                          attention_type="causal-linear",
-                               n_layers=2,
-                                n_heads=8).to(device)
+                               n_layers=opt.n_layers,
+                                n_heads=opt.n_heads).to(device)
 
     # Train model
     trained_model = train(model, train_data, test_data, epochs=opt.epochs, lr=opt.lr)
