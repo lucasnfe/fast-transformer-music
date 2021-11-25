@@ -3,7 +3,6 @@ import time
 import math
 import copy
 import torch
-import random
 import argparse
 
 from model import MusicGenerator
@@ -17,9 +16,7 @@ def _load_txt(file_path):
 
 def load_txt_dir(dir_path):
     data = []
-
-    randomized_files = random.shuffle(os.listdir(dir_path))
-    for file_path in randomized_files:
+    for file_path in os.listdir(dir_path):
         full_path = os.path.join(dir_path, file_path)
         if os.path.isfile(full_path):
             file_name, extension = os.path.splitext(file_path)
