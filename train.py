@@ -120,6 +120,7 @@ if __name__ == '__main__':
     parser.add_argument('--train', type=str, required=True, help="Path to train data directory.")
     parser.add_argument('--test', type=str, required=True, help="Path to test data directory.")
     parser.add_argument('--epochs', type=int, default=100, help="Epochs to train.")
+    parser.add_argument('--batch_size', type=int, default=32, help="Batch size.")
     parser.add_argument('--lr', type=float, default=0.0001, help="Learning rate.")
     parser.add_argument('--seq_len', type=int, required=True, help="Max sequence to process.")
     parser.add_argument('--n_layers', type=int, default=4, help="Number of transformer layers.")
@@ -139,8 +140,8 @@ if __name__ == '__main__':
     vocab_size = max(train_data.vocab_size, test_data.vocab_size) + 1
 
     # Batchfy flat tensor data
-    train_dataloader = torch.utils.data.DataLoader(train_data, batch_size=32, shuffle=True)
-    test_dataloader = torch.utils.data.DataLoader(test_data, batch_size=32, shuffle=True)
+    train_dataloader = torch.utils.data.DataLoader(train_data, batch_size=opt.batch_size, shuffle=True)
+    test_dataloader = torch.utils.data.DataLoader(test_data, batch_size=opt.batch_size, shuffle=True)
 
     # Build linear transformer
     model = MusicGenerator(n_tokens=vocab_size,
