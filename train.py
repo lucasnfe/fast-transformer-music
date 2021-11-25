@@ -67,7 +67,7 @@ def train_step(model, train_data, epoch, lr, criterion, optimizer, log_interval=
 
         # Backward pass
         optimizer.zero_grad()
-        loss = criterion(y_hat.view(-1, vocab_size), y)
+        loss = criterion(y_hat.view(-1, vocab_size), y.view(-1))
         loss.backward()
         optimizer.step()
 
@@ -107,7 +107,7 @@ def evaluate(model, test_data, criterion):
 
             # Evaluate
             y_hat = model(x)
-            loss = criterion(y_hat.view(-1, vocab_size), y)
+            loss = criterion(y_hat.view(-1, vocab_size), y.view(-1))
 
             total_loss += x.shape[0] * loss.item()
             total_samples += x.shape[0]
@@ -152,4 +152,4 @@ if __name__ == '__main__':
                                 n_heads=opt.n_heads).to(device)
 
     # Train model
-    trained_model = train(model, train_data, test_data, epochs=opt.epochs, lr=opt.lr, save_to=opt.save_to)
+    trained_model = train(model, train_dataloader, test_dataloader, epochs=opt.epochs, lr=opt.lr, save_to=opt.save_to)
