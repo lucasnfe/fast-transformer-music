@@ -43,10 +43,9 @@ def train(model, train_data, test_data, epochs=100, lr=0.001):
 
 def train_step(model, train_data, epoch, lr, criterion, optimizer, log_interval=100):
     model.train()
-    total_loss = 0
-
     start_time = time.time()
 
+    total_loss = 0
     for batch, (x, y) in enumerate(train_data):
         # Forward pass
         x = x.to(device)
@@ -85,21 +84,22 @@ def log_stats(optimizer, epoch, batch, num_batches, total_loss, start_time, log_
 
 def evaluate(model, test_data, criterion):
     model.eval()
-    total_loss = 0.0
 
+    total_loss = 0
+    total_samples = 0
     with torch.no_grad():
         for batch, (x, y) in enumerate(test_data):
             x = x.to(device)
             y = y.to(device)
 
-            # Forward pass
+            # Evaluate
             y_hat = model(x)
-
-            # Backward pass
             loss = criterion(y_hat.view(-1, vocab_size), y)
-            total_loss += x.size(0) * loss.item()
 
-    return total_loss / (len(test_data) - 1)
+            total_loss += x.shape[0] * loss.item()
+            total_samples += x.shape[0]
+
+    return total_loss / total_samples
 
 if __name__ == '__main__':
     # Parse arguments
