@@ -5,42 +5,12 @@ import copy
 import torch
 import argparse
 
+from vgmidi import VGMidi
 from model import MusicGenerator
 
-def _load_txt(file_path):
-    loaded_list = []
-    with open(file_path) as f:
-        loaded_list = [int(token) for token in f.read().split()]
-
-    return loaded_list
-
-def load_txt_dir(dir_path):
-    data = []
-    for file_path in os.listdir(dir_path):
-        full_path = os.path.join(dir_path, file_path)
-        if os.path.isfile(full_path):
-            file_name, extension = os.path.splitext(file_path)
-            if extension.lower() == ".txt":
-                encoded = _load_txt(full_path)
-                data += encoded
-
-    return data
-
-def batchfy_data(data, batch_size):
-    seq_len = data.size(0) // batch_size
-    data = data[:seq_len * batch_size]
-    data = data.view(batch_size, seq_len).t().contiguous()
-    return data.to(device)
-
-def get_batch(source, i, bptt):
-    seq_len = min(bptt, len(source) - 1 - i)
-    x = source[i:i+seq_len]
-    y = source[i+1:i+1+seq_len].reshape(-1)
-    return x, y
-
-def train(model, train_data, test_data, bptt, vocab_size, epochs=100, lr=0.001):
-    best_val_loss = float('inf')
+def train(model, train_data, test_data, epochs=100, lr=0.001):
     best_model = None
+    best_val_loss = float('inf')
 
     criterion = torch.nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
@@ -49,10 +19,10 @@ def train(model, train_data, test_data, bptt, vocab_size, epochs=100, lr=0.001):
         epoch_start_time = time.time()
 
         # Train model for one epoch
-        train_step(model, train_data, epoch, bptt, vocab_size, lr, criterion, optimizer)
+        train_step(model, train_data, epoch, lr, criterion, optimizer)
 
         # Evaluate model on test set
-        val_loss = evaluate(model, test_data, bptt, vocab_size, criterion)
+        val_loss = evaluate(model, test_data, criterion)
 
         elapsed = time.time() - epoch_start_time
 
@@ -71,16 +41,15 @@ def train(model, train_data, test_data, bptt, vocab_size, epochs=100, lr=0.001):
 
     return best_model
 
-def train_step(model, train_data, epoch, bptt, vocab_size, lr, criterion, optimizer, log_interval=100):
+def train_step(model, train_data, epoch, lr, criterion, optimizer, log_interval=100):
     model.train()
     total_loss = 0
 
     start_time = time.time()
 
-    num_batches = len(train_data) // bptt
-    for batch, i in enumerate(range(0, train_data.size(0) - 1, bptt)):
-        # Get current batch
-        x, y = get_batch(train_data, i, bptt)
+    for batch, (x, y) in enumerate(train_data):
+        x = x.to(device)
+        y = y.to(device)
 
         optimizer.zero_grad()
 
@@ -96,7 +65,7 @@ def train_step(model, train_data, epoch, bptt, vocab_size, lr, criterion, optimi
         # Log training statistics
         total_loss += loss.item()
         if batch % log_interval == 0 and batch > 0:
-            log_stats(optimizer, epoch, batch, num_batches, total_loss, start_time, log_interval)
+            log_stats(optimizer, epoch, batch, len(train_data), total_loss, start_time, log_interval)
             total_loss = 0
             start_time = time.time()
 
@@ -114,20 +83,24 @@ def log_stats(optimizer, epoch, batch, num_batches, total_loss, start_time, log_
     ppl = math.exp(cur_loss)
 
     print(f'| epoch {epoch:3d} | {batch:5d}/{num_batches:5d} batches | '
-          f'lr {lr:02.2f} | ms/batch {ms_per_batch:5.2f} | '
+          f'lr {lr:02.5f} | ms/batch {ms_per_batch:5.2f} | '
           f'loss {cur_loss:5.2f} | ppl {ppl:8.2f}')
 
-def evaluate(model, test_data, bptt, vocab_size, criterion):
+def evaluate(model, test_data, criterion):
     model.eval()
     total_loss = 0.0
 
     with torch.no_grad():
-        for i in range(0, test_data.size(0) - 1, bptt):
-            data, targets = get_batch(test_data, i, bptt)
-            output = model(data)
-            output_flat = output.view(-1, vocab_size)
-            batch_size = data.size(0)
-            total_loss += batch_size * criterion(output_flat, targets).item()
+        for batch, (x, y) in enumerate(test_data):
+            x = x.to(device)
+            y = y.to(device)
+
+            # Forward pass
+            y_hat = model(x)
+
+            # Backward pass
+            loss = criterion(y_hat.view(-1, vocab_size), y)
+            total_loss += x.size(0) * loss.item()
 
     return total_loss / (len(test_data) - 1)
 
@@ -136,29 +109,32 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='train_ftm.py')
     parser.add_argument('--train', type=str, required=True, help="Path to train data directory.")
     parser.add_argument('--test', type=str, required=True, help="Path to test data directory.")
+    parser.add_argument('--seq_len', type=int, required=True, help="Max sequence to process.")
+    parser.add_argument('--epochs', type=int, required=True, help="Epochs to train.")
+    parser.add_argument('--lr', type=float, required=True, help="Learning rate.")
     opt = parser.parse_args()
 
     # Set up torch device
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     # Load data as a flat tensors
-    train_data = load_txt_dir(opt.train)
-    test_data = load_txt_dir(opt.test)
+    train_data = VGMidi(opt.train, seq_len=opt.seq_len)
+    test_data = VGMidi(opt.test, seq_len=opt.seq_len)
 
     # Compute vocab size
-    vocab_size = max(train_data + test_data) + 1
+    vocab_size = max(train_data.vocab_size, test_data.vocab_size) + 1
 
     # Batchfy flat tensor data
-    train_data = batchfy_data(torch.tensor(train_data, dtype=torch.long), batch_size=32)
-    test_data = batchfy_data(torch.tensor(test_data, dtype=torch.long), batch_size=32)
+    train_dataloader = torch.utils.data.DataLoader(train_data, batch_size=32, shuffle=True)
+    test_dataloader = torch.utils.data.DataLoader(test_data, batch_size=32, shuffle=True)
 
     # Build linear transformer
     model = MusicGenerator(n_tokens=vocab_size,
                                 d_model=256,
-                                seq_len=128,
+                                seq_len=opt.seq_len,
                          attention_type="causal-linear",
                                n_layers=2,
                                 n_heads=8).to(device)
 
     # Train model
-    trained_model = train(model, train_data, test_data, bptt=128, vocab_size=vocab_size)
+    trained_model = train(model, train_data, test_data, epochs=opt.epochs, lr=opt.lr)
