@@ -3,6 +3,7 @@ import time
 import math
 import copy
 import torch
+import random
 import argparse
 
 from model import MusicGenerator
@@ -16,7 +17,9 @@ def _load_txt(file_path):
 
 def load_txt_dir(dir_path):
     data = []
-    for file_path in os.listdir(dir_path):
+
+    randomized_files = random.shuffle(os.listdir(dir_path))
+    for file_path in randomized_files:
         full_path = os.path.join(dir_path, file_path)
         if os.path.isfile(full_path):
             file_name, extension = os.path.splitext(file_path)
@@ -34,9 +37,9 @@ def batchfy_data(data, batch_size):
 
 def get_batch(source, i, bptt):
     seq_len = min(bptt, len(source) - 1 - i)
-    data = source[i:i+seq_len]
-    target = source[i+1:i+1+seq_len].reshape(-1)
-    return data, target
+    x = source[i:i+seq_len]
+    y = source[i+1:i+1+seq_len].reshape(-1)
+    return x, y
 
 def train(model, train_data, test_data, bptt, vocab_size, epochs=100, lr=0.001):
     best_val_loss = float('inf')
@@ -48,13 +51,18 @@ def train(model, train_data, test_data, bptt, vocab_size, epochs=100, lr=0.001):
     for epoch in range(1, epochs + 1):
         epoch_start_time = time.time()
 
+        # Train model for one epoch
         train_step(model, train_data, epoch, bptt, vocab_size, lr, criterion, optimizer)
 
+        # Evaluate model on test set
         val_loss = evaluate(model, test_data, bptt, vocab_size, criterion)
-        val_ppl = math.exp(val_loss)
 
         elapsed = time.time() - epoch_start_time
 
+        # Compute validation perplexity
+        val_ppl = math.exp(val_loss)
+
+        # Log training statistics for this epoch
         print('-' * 89)
         print(f'| end of epoch {epoch:3d} | time: {elapsed:5.2f}s | '
               f'valid loss {val_loss:5.2f} | valid ppl {val_ppl:8.2f}')
