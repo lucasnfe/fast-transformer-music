@@ -1,14 +1,23 @@
 import os
 import time
 import math
-import copy
 import torch
 import argparse
 
 from vgmidi import VGMidi
 from model import MusicGenerator
 
-def train(model, train_data, test_data, epochs=100, lr=0.001):
+def save_model(model, optimizer, epoch, save_to):
+    model_path = save_to.format(epoch)
+    torch.save(
+        dict(
+            model_state=model.state_dict(),
+            optimizer_state=optimizer.state_dict(),
+            epoch=epoch
+        ),
+        model_path)
+
+def train(model, train_data, test_data, epochs, lr, save_to):
     best_model = None
     best_val_loss = float('inf')
 
@@ -35,9 +44,13 @@ def train(model, train_data, test_data, epochs=100, lr=0.001):
               f'valid loss {val_loss:5.2f} | valid ppl {val_ppl:8.2f}')
         print('-' * 89)
 
+        # Save best model so far
         if val_loss < best_val_loss:
+            print(f'Validation loss improved from {best_val_loss:5.2f} to {val_loss:5.2f}.'
+                  f'Saving model to {save_to}.')
+
             best_val_loss = val_loss
-            best_model = copy.deepcopy(model)
+            save_model(model, optimizer, epoch, save_to)
 
     return best_model
 
@@ -106,12 +119,13 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='train_ftm.py')
     parser.add_argument('--train', type=str, required=True, help="Path to train data directory.")
     parser.add_argument('--test', type=str, required=True, help="Path to test data directory.")
-    parser.add_argument('--seq_len', type=int, required=True, help="Max sequence to process.")
     parser.add_argument('--epochs', type=int, default=100, help="Epochs to train.")
+    parser.add_argument('--lr', type=float, default=0.0001, help="Learning rate.")
+    parser.add_argument('--seq_len', type=int, required=True, help="Max sequence to process.")
     parser.add_argument('--n_layers', type=int, default=4, help="Number of transformer layers.")
     parser.add_argument('--n_heads', type=int, default=8, help="Number of attention heads.")
     parser.add_argument('--d_query', type=int, default=32, help="Dimension of the query matrix.")
-    parser.add_argument('--lr', type=float, default=0.0001, help="Learning rate.")
+    parser.add_argument('--save_to', type=str, required=True, help="Set a file to save the models to.")
     opt = parser.parse_args()
 
     # Set up torch device
@@ -137,4 +151,4 @@ if __name__ == '__main__':
                                 n_heads=opt.n_heads).to(device)
 
     # Train model
-    trained_model = train(model, train_data, test_data, epochs=opt.epochs, lr=opt.lr)
+    trained_model = train(model, train_data, test_data, epochs=opt.epochs, lr=opt.lr, save_to=opt.save_to)
