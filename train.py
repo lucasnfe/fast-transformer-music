@@ -5,7 +5,7 @@ import torch
 import argparse
 
 from vgmidi import VGMidi
-from model import MusicGenerator
+from model_train import MusicGenerator
 
 def save_model(model, optimizer, epoch, save_to):
     model_path = save_to.format(epoch)
@@ -22,7 +22,7 @@ def train(model, train_data, test_data, epochs, lr, save_to):
     best_val_loss = float('inf')
 
     criterion = torch.nn.CrossEntropyLoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+    optimizer = torch.optim.RAdam(model.parameters(), lr=lr, weight_decay=0.01)
 
     for epoch in range(1, epochs + 1):
         epoch_start_time = time.time()
