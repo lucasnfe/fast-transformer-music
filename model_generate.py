@@ -24,8 +24,8 @@ class RecurrentMusicGenerator(torch.nn.Module):
     def __init__(self, n_tokens, d_model, seq_len,
                  attention_type="full", n_layers=4, n_heads=4,
                  d_query=32, dropout=0.1, softmax_temp=None,
-                 attention_dropout=0.1,
-                 bits=32, rounds=4,
+                 attention_dropout=0.1, bits=32, rounds=4,
+                 feed_forward_dimensions=2014,
                  chunk_size=32, masked=True):
 
         super(RecurrentMusicGenerator, self).__init__()
@@ -37,7 +37,7 @@ class RecurrentMusicGenerator(torch.nn.Module):
             attention_type=attention_type,
             n_layers=n_layers,
             n_heads=n_heads,
-            feed_forward_dimensions=n_heads * d_query * 4,
+            feed_forward_dimensions=feed_forward_dimensions,
             query_dimensions=d_query,
             value_dimensions=d_query,
             dropout=dropout,
