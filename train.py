@@ -102,9 +102,6 @@ def train(model, train_data, test_data, epochs, lr, save_to):
         # Evaluate model on test set
         val_loss = evaluate(model, test_data, criterion)
 
-        # Step scheduler
-        scheduler.step()
-
         elapsed = time.time() - epoch_start_time
 
         # Compute validation perplexity
@@ -142,7 +139,9 @@ def train_step(model, train_data, epoch, lr, criterion, optimizer, scheduler, lo
         optimizer.zero_grad()
         loss = criterion(y_hat.view(-1, vocab_size), y.view(-1))
         loss.backward()
+
         optimizer.step()
+        scheduler.step(epoch + batch / len(train_data))
 
         # Log training statistics
         total_loss += loss.item()
