@@ -44,6 +44,6 @@ Train a [fast-tranformer]() on the VGMIDI dataset:
 ## 4. Generate Music
 This repository includes a pre-trained model (`trained/model40.pth`). To generate music with that model:
 
-`python3 generate.py --seq_len 2048 --n_layers 8 --model trained/model40.pth --vocab_size 390 --k 10 --p 0.9`
+`python3 generate.py --seq_len 2048 --n_layers 8 --model trained/model40.pth --vocab_size 390 --k 45 --p 0.9`
 
 To generate music with a model you trained yourself, simply change the --model argument to point to the model saved during training.
