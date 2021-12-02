@@ -46,4 +46,4 @@ Encode the VGMIDI dataset with the encoding scheme as defined by [Oore et al. 20
 
 Train a [fast-tranformer]() on the VGMIDI dataset:
 
-`python3 train.py --train vgmidi/train/ --test vgmidi/test --seq_len 2048 --lr 1e-05 --epochs 100 --n_layers 8 --save_to trained/model{}.pth`
+`python3 train.py --train vgmidi_augmented/train/ --test vgmidi_augmented/test --seq_len 2048 --lr 1e-04 --epochs 50 --d_query 32 --n_heads 8 --n_layers 8 --batch_size 16 --save_to trained/model_{}.pth`
