@@ -16,13 +16,6 @@ class VGMidi(torch.utils.data.Dataset):
         y = (torch.tensor(self.pieces[idx][1:])/self.vocab_size) * 2.0 - 1.0
         return x, y
 
-    @property
-    def vocab_size(self):
-        vocab_size = float("-inf")
-        for piece in self.pieces:
-            vocab_size = max(vocab_size, max(piece))
-        return vocab_size
-
     def _load_txt(self, file_path):
         loaded_list = []
         with open(file_path) as f:
@@ -31,6 +24,8 @@ class VGMidi(torch.utils.data.Dataset):
 
     def _load_pieces(self, pieces_path, seq_len):
         pieces = []
+        self.vocab_size = 0
+
         for file_path in os.listdir(pieces_path):
             full_path = os.path.join(pieces_path, file_path)
             if os.path.isfile(full_path):
@@ -46,6 +41,9 @@ class VGMidi(torch.utils.data.Dataset):
                         if len(piece_seq) < seq_len:
                             # Pad sequence
                             piece_seq += [PAD_TOKEN] * (seq_len - len(piece_seq))
+
+                        # Update vocab size
+                        self.vocab_size = max(self.vocab_size, max(piece_seq))
 
                         pieces.append(piece_seq)
 
