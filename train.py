@@ -136,6 +136,7 @@ def train_step(model, train_data, epoch, lr, optimizer, log_interval=100):
     start_time = time.time()
 
     total_loss = 0
+    total_samples = 0
     for batch, (x, y) in enumerate(train_data):
         # Forward pass
         x = x.to(device)
@@ -149,21 +150,23 @@ def train_step(model, train_data, epoch, lr, optimizer, log_interval=100):
         optimizer.step()
 
         # Log training statistics
-        total_loss += l.item()
+        total_loss += x.shape[0] * l.item()
+        total_samples += x.shape[0]
+
         if batch % log_interval == 0 and batch > 0:
-            log_stats(optimizer, epoch, batch, len(train_data), total_loss, start_time, log_interval)
-            total_loss = 0
+            cur_loss = total_loss/total_samples
+            log_stats(optimizer, epoch, batch, len(train_data), cur_loss, start_time, log_interval)
             start_time = time.time()
 
-def log_stats(optimizer, epoch, batch, num_batches, total_loss, start_time, log_interval):
+            total_loss = 0
+            total_samples = 0
+
+def log_stats(optimizer, epoch, batch, num_batches, cur_loss, start_time, log_interval):
     # Get current learning rate
     lr = optimizer.get_lr()[0]
 
     # Compute duration of each batch
     ms_per_batch = (time.time() - start_time) * 1000 / log_interval
-
-    # Compute current loss
-    cur_loss = total_loss / log_interval
 
     # compute current perplexity
     ppl = math.exp(cur_loss)
