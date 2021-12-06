@@ -86,11 +86,12 @@ def save_model(model, optimizer, epoch, save_to):
         ),
         model_path)
 
-def loss(y, y_hat):
+def loss(y, y_hat, vocab_size):
     log2 = 0.6931471805599453
     y_hat = y_hat.permute(0, 2, 1).contiguous()
+
     N, C, L = y_hat.shape
-    l = discretized_mix_logistic_loss(y_hat, y.view(N, L, 1))
+    l = discretized_mix_logistic_loss(y_hat, y.view(N, L, 1), num_classes=vocab_size)
     bpd = l.item() / log2
     return l, bpd
 
@@ -145,7 +146,7 @@ def train_step(model, train_data, epoch, lr, optimizer, log_interval=100):
 
         # Backward pass
         optimizer.zero_grad()
-        l, bpd = loss(y, y_hat)
+        l, bpd = loss(y, y_hat, vocab_size)
         l.backward()
         optimizer.step()
 
@@ -187,7 +188,7 @@ def evaluate(model, test_data):
 
             # Evaluate
             y_hat = model(x)
-            l, bpd = loss(y, y_hat)
+            l, bpd = loss(y, y_hat, vocab_size)
 
             total_loss += x.shape[0] * l.item()
             total_samples += x.shape[0]
