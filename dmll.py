@@ -10,7 +10,7 @@ def log_sum_exp(x):
     m2, _ = torch.max(x, dim=axis, keepdim=True)
     return m + torch.log(torch.sum(torch.exp(x - m2), dim=axis))
 
-def discretized_mix_logistic_loss(y_hat, y, num_classes=256,
+def discretized_mix_logistic_loss(y_hat, y, num_classes,
                                   log_scale_min=-7.0, reduce=True):
     """Discretized mixture of logistic distributions loss
     Note that it is assumed that input is scaled to [-1, 1].
