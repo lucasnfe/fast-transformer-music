@@ -172,7 +172,7 @@ def log_stats(optimizer, epoch, batch, num_batches, total_loss, start_time, log_
           f'lr {lr:02.5f} | ms/batch {ms_per_batch:5.2f} | '
           f'loss {cur_loss:5.2f} | ppl {ppl:8.2f}')
 
-def evaluate(model, test_data, criterion):
+def evaluate(model, test_data):
     model.eval()
 
     total_loss = 0
