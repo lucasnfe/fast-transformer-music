@@ -207,6 +207,7 @@ if __name__ == '__main__':
     parser.add_argument('--n_layers', type=int, default=4, help="Number of transformer layers.")
     parser.add_argument('--d_query', type=int, default=32, help="Dimension of the query matrix.")
     parser.add_argument('--n_heads', type=int, default=8, help="Number of attention heads.")
+    parser.add_argument('--mixtures', type=int, default=10, help="Number of logistic mixutures.")
     parser.add_argument('--save_to', type=str, required=True, help="Set a file to save the models to.")
     opt = parser.parse_args()
 
@@ -229,7 +230,7 @@ if __name__ == '__main__':
                             d_query=opt.d_query,
                             d_model=opt.d_query * opt.n_heads,
                             seq_len=opt.seq_len,
-                           mixtures=3,
+                           mixtures=opt.mixtures,
                      attention_type="causal-linear",
                            n_layers=opt.n_layers,
                            n_heads=opt.n_heads).to(device)

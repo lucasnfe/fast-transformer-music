@@ -24,8 +24,8 @@ class VGMidi(torch.utils.data.Dataset):
 
     def _load_pieces(self, pieces_path, seq_len):
         pieces = []
-        self.vocab_size = 0
 
+        self.vocab_size = 0
         for file_path in os.listdir(pieces_path):
             full_path = os.path.join(pieces_path, file_path)
             if os.path.isfile(full_path):
@@ -45,6 +45,7 @@ class VGMidi(torch.utils.data.Dataset):
                         # Update vocab size
                         self.vocab_size = max(self.vocab_size, max(piece_seq))
 
+                        # Append loaded piece
                         pieces.append(piece_seq)
 
         return pieces

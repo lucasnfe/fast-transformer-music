@@ -12,6 +12,8 @@ def log_sum_exp(x):
 
 def discretized_mix_logistic_loss(y_hat, y, num_classes,
                                   log_scale_min=-7.0, reduce=True):
+
+    print(num_classes)
     """Discretized mixture of logistic distributions loss
     Note that it is assumed that input is scaled to [-1, 1].
     Args:
