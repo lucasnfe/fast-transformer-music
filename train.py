@@ -7,6 +7,7 @@ import argparse
 from vgmidi import VGMidi
 from radam import RAdam
 
+from dmll import discretized_mix_logistic_loss
 from fast_transformers.masking import LengthMask, TriangularCausalMask
 from fast_transformers.builders import TransformerEncoderBuilder
 
@@ -33,7 +34,7 @@ class PositionalEncoding(torch.nn.Module):
         return self.dropout(x)
 
 class MusicGenerator(torch.nn.Module):
-    def __init__(self, n_tokens, d_model, seq_len,
+    def __init__(self, n_tokens, d_model, seq_len, mixtures,
                  attention_type="full", n_layers=4, n_heads=4,
                  d_query=32, dropout=0.1, softmax_temp=None,
                  attention_dropout=0.1, bits=32, rounds=4,
@@ -62,7 +63,7 @@ class MusicGenerator(torch.nn.Module):
         ).get()
 
         hidden_size = n_heads * d_query
-        self.predictor = torch.nn.Linear(hidden_size, n_tokens)
+        self.predictor = torch.nn.Linear(hidden_size, mixtures * 3)
 
     def forward(self, x):
         x = x.view(x.shape[0], -1)
@@ -85,22 +86,28 @@ def save_model(model, optimizer, epoch, save_to):
         ),
         model_path)
 
+def loss(y, y_hat):
+    log2 = 0.6931471805599453
+    y_hat = y_hat.permute(0, 2, 1).contiguous()
+    N, C, L = y_hat.shape
+    l = discretized_mix_logistic_loss(y_hat, y.view(N, L, 1))
+    bpd = l.item() / log2
+    return l, bpd
+
 def train(model, train_data, test_data, epochs, lr, save_to):
     best_model = None
     best_val_loss = float('inf')
 
-    criterion = torch.nn.CrossEntropyLoss()
     optimizer = RAdam(model.parameters(), lr=lr, weight_decay=0.01)
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=2000)
 
     for epoch in range(1, epochs + 1):
         epoch_start_time = time.time()
 
         # Train model for one epoch
-        train_step(model, train_data, epoch, lr, criterion, optimizer, scheduler)
+        train_step(model, train_data, epoch, lr, optimizer)
 
         # Evaluate model on test set
-        val_loss = evaluate(model, test_data, criterion)
+        val_loss = evaluate(model, test_data)
 
         elapsed = time.time() - epoch_start_time
 
@@ -124,7 +131,7 @@ def train(model, train_data, test_data, epochs, lr, save_to):
 
     return best_model
 
-def train_step(model, train_data, epoch, lr, criterion, optimizer, scheduler, log_interval=100):
+def train_step(model, train_data, epoch, lr, optimizer, log_interval=100):
     model.train()
     start_time = time.time()
 
@@ -137,22 +144,20 @@ def train_step(model, train_data, epoch, lr, criterion, optimizer, scheduler, lo
 
         # Backward pass
         optimizer.zero_grad()
-        loss = criterion(y_hat.view(-1, vocab_size), y.view(-1))
-        loss.backward()
-
+        l, bpd = loss(y, y_hat)
+        l.backward()
         optimizer.step()
-        scheduler.step(epoch + batch / len(train_data))
 
         # Log training statistics
-        total_loss += loss.item()
+        total_loss += l.item()
         if batch % log_interval == 0 and batch > 0:
-            log_stats(scheduler, epoch, batch, len(train_data), total_loss, start_time, log_interval)
+            log_stats(optimizer, epoch, batch, len(train_data), total_loss, start_time, log_interval)
             total_loss = 0
             start_time = time.time()
 
-def log_stats(scheduler, epoch, batch, num_batches, total_loss, start_time, log_interval):
+def log_stats(optimizer, epoch, batch, num_batches, total_loss, start_time, log_interval):
     # Get current learning rate
-    lr = scheduler.get_last_lr()[0]
+    lr = optimizer.get_lr()[0]
 
     # Compute duration of each batch
     ms_per_batch = (time.time() - start_time) * 1000 / log_interval
@@ -179,9 +184,9 @@ def evaluate(model, test_data, criterion):
 
             # Evaluate
             y_hat = model(x)
-            loss = criterion(y_hat.view(-1, vocab_size), y.view(-1))
+            l, bpd = loss(y, y_hat)
 
-            total_loss += x.shape[0] * loss.item()
+            total_loss += x.shape[0] * l.item()
             total_samples += x.shape[0]
 
     return total_loss / total_samples
@@ -220,6 +225,7 @@ if __name__ == '__main__':
                             d_query=opt.d_query,
                             d_model=opt.d_query * opt.n_heads,
                             seq_len=opt.seq_len,
+                           mixtures=3,
                      attention_type="causal-linear",
                            n_layers=opt.n_layers,
                            n_heads=opt.n_heads).to(device)

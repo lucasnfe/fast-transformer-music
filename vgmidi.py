@@ -12,9 +12,9 @@ class VGMidi(torch.utils.data.Dataset):
         return len(self.pieces)
 
     def __getitem__(self, idx):
-        x = self.pieces[idx][:-1]
-        y = self.pieces[idx][1:]
-        return torch.tensor(x), torch.tensor(y)
+        x = torch.tensor(self.pieces[idx][:-1])
+        y = (torch.tensor(self.pieces[idx][1:])/self.vocab_size) * 2.0 - 1.0
+        return x, y
 
     @property
     def vocab_size(self):
