@@ -5,7 +5,6 @@ import torch
 import argparse
 
 from vgmidi import VGMidi
-from radam import RAdam
 
 from fast_transformers.masking import LengthMask, TriangularCausalMask
 from fast_transformers.builders import TransformerEncoderBuilder
@@ -90,8 +89,8 @@ def train(model, train_data, test_data, epochs, lr, save_to):
     best_val_loss = float('inf')
 
     criterion = torch.nn.CrossEntropyLoss()
-    optimizer = RAdam(model.parameters(), lr=lr, weight_decay=0.01)
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=2000)
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.5)
 
     for epoch in range(1, epochs + 1):
         epoch_start_time = time.time()
@@ -122,6 +121,9 @@ def train(model, train_data, test_data, epochs, lr, save_to):
 
         print('-' * 89)
 
+        # Advance one epoch of the learning rate scheduler
+        scheduler.step()
+
     return best_model
 
 def train_step(model, train_data, epoch, lr, criterion, optimizer, scheduler, log_interval=100):
@@ -139,9 +141,7 @@ def train_step(model, train_data, epoch, lr, criterion, optimizer, scheduler, lo
         optimizer.zero_grad()
         loss = criterion(y_hat.view(-1, vocab_size), y.view(-1))
         loss.backward()
-
         optimizer.step()
-        scheduler.step(epoch + batch / len(train_data))
 
         # Log training statistics
         total_loss += loss.item()
