@@ -48,6 +48,8 @@ def train_baseline(x_train, x_test, y_train, y_test):
     print(confusion)
 
 def train(model, train_data, test_data, epochs, lr, log_interval=1):
+    model.train()
+
     criterion = torch.nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 
