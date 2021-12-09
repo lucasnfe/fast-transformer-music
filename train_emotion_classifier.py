@@ -10,7 +10,7 @@ from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.linear_model            import SGDClassifier
 from sklearn.metrics                 import confusion_matrix
 
-from models.music_emotion_classifier import MusicEmotionClassifier
+from models.music_generator import MusicGenerator
 
 def encode_bow(xs, vocab_size):
     # Create bag of words
@@ -145,13 +145,13 @@ if __name__ == '__main__':
     test_loader = torch.utils.data.DataLoader(vgmidi_test, batch_size=opt.batch_size, shuffle=False)
 
     # Build linear transformer
-    model = MusicEmotionClassifier(n_tokens=opt.vocab_size,
-                                   d_query=opt.d_query,
-                                   d_model=opt.d_query * opt.n_heads,
-                                   seq_len=opt.seq_len,
-                            attention_type="linear",
-                                  n_layers=opt.n_layers,
-                                   n_heads=opt.n_heads).to(device)
+    model = MusicGenerator(n_tokens=opt.vocab_size,
+                            d_query=opt.d_query,
+                            d_model=opt.d_query * opt.n_heads,
+                            seq_len=opt.seq_len,
+                     attention_type="causal-linear",
+                           n_layers=opt.n_layers,
+                            n_heads=opt.n_heads).to(device)
 
     # Load model
     model.load_state_dict(torch.load(opt.model, map_location=device)["model_state"])
@@ -161,7 +161,6 @@ if __name__ == '__main__':
         param.requires_grad = False
 
     # Reset classficiation head to the emotion classficiation problem
-    model.predictor = torch.nn.Linear(model.predictor.in_features, 4)
-    model = model.to(device)
+    model.predictor = torch.nn.Linear(model.predictor.in_features, 4).to(device)
 
     train(model, train_loader, test_loader, opt.epochs, opt.lr)
