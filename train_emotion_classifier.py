@@ -51,10 +51,10 @@ def train(model, train_data, test_data, epochs, lr, log_interval=1):
     criterion = torch.nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 
-    total_loss = 0
     for epoch in range(1, epochs + 1):
         epoch_start_time = time.time()
 
+        total_loss = 0
         for batch, (x, y) in enumerate(train_data):
             # Forward pass
             x = x.to(device)
@@ -102,7 +102,7 @@ def evaluate(model, test_data):
             y_hat = model(x)
 
             # the class with the highest energy is what we choose as prediction
-            _, y_hat = torch.max(y_hat.data, 1)
+            _, y_hat = torch.max(y_hat[:,-1,:].data, dim=1)
 
             total += y.size(0)
             correct += (y_hat == y).sum().item()
@@ -159,6 +159,6 @@ if __name__ == '__main__':
         param.requires_grad = False
 
     # Reset classficiation head to the emotion classficiation problem
-    model.predictor = torch.nn.Linear(model.predictor.in_features, 4)
+    model.predictor = torch.nn.Linear(model.predictor.in_features, 4).to(device)
 
     train(model, train_loader, test_loader, opt.epochs, opt.lr)
