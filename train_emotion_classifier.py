@@ -161,6 +161,6 @@ if __name__ == '__main__':
         param.requires_grad = False
 
     # Reset classficiation head to the emotion classficiation problem
-    model.predictor = torch.nn.Linear(model.predictor.in_features, 4).to(device)
+    model = torch.nn.Sequential(model, torch.nn.Linear(opt.vocab_size, 4)).to(device)
 
     train(model, train_loader, test_loader, opt.epochs, opt.lr)
