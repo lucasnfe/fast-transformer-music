@@ -67,3 +67,18 @@ class MusicEmotionClassifier(torch.nn.Module):
         y_hat = self.predictor(y_hat)
 
         return y_hat
+
+class MusicEmotionClassifierBaseline(torch.nn.Module):
+    def __init__(self, n_tokens, d_model):
+        super(MusicEmotionClassifierBaseline, self).__init__()
+
+        self.value_embedding = torch.nn.Embedding(n_tokens, d_model)
+        self.predictor = torch.nn.Linear(d_model, 4)
+
+    def forward(self, x):
+        x = x.view(x.shape[0], -1)
+        x = self.value_embedding(x)
+
+        y_hat = self.predictor(x)
+
+        return y_hat

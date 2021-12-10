@@ -10,7 +10,7 @@ from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.linear_model            import SGDClassifier
 from sklearn.metrics                 import confusion_matrix
 
-from models.music_generator import MusicGenerator
+from models.music_emotion_classifier import MusicEmotionClassifier, MusicEmotionClassifierBaseline
 
 def encode_bow(xs, vocab_size):
     # Create bag of words
@@ -34,7 +34,7 @@ def evaluate_clf(y_test, y_hat):
 def train_baseline(x_train, x_test, y_train, y_test):
     # Fit Logistic Regression
     clf = SGDClassifier(loss="log",
-                 penalty="l1",
+                 penalty="l2",
                    alpha=1e-4,
             random_state=42,
                 max_iter=1000,
@@ -65,7 +65,13 @@ def train(model, train_data, test_data, epochs, lr, log_interval=1):
 
             # Backward pass
             optimizer.zero_grad()
-            loss = criterion(y_hat[:,-1,:], y.view(-1))
+            loss = criterion(y_hat[:,-1,:], y)
+
+            # Apply l1 regularization
+            l1_lambda = 0.001
+            l1_norm = sum(p.abs().sum() for p in model.parameters())
+            loss = loss + l1_lambda * l1_norm
+
             loss.backward()
             optimizer.step()
 
@@ -145,11 +151,11 @@ if __name__ == '__main__':
     test_loader = torch.utils.data.DataLoader(vgmidi_test, batch_size=opt.batch_size, shuffle=False)
 
     # Build linear transformer
-    model = MusicGenerator(n_tokens=opt.vocab_size,
+    model = MusicEmotionClassifier(n_tokens=opt.vocab_size,
                             d_query=opt.d_query,
                             d_model=opt.d_query * opt.n_heads,
                             seq_len=opt.seq_len,
-                     attention_type="causal-linear",
+                     attention_type="linear",
                            n_layers=opt.n_layers,
                             n_heads=opt.n_heads).to(device)
 
@@ -160,7 +166,7 @@ if __name__ == '__main__':
     for param in model.parameters():
         param.requires_grad = False
 
-    # Reset classficiation head to the emotion classficiation problem
+    # Add classification head
     model = torch.nn.Sequential(model, torch.nn.Linear(opt.vocab_size, 4)).to(device)
 
     train(model, train_loader, test_loader, opt.epochs, opt.lr)
