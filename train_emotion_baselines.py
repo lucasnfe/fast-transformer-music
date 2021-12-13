@@ -11,6 +11,7 @@ from sklearn.linear_model            import SGDClassifier
 from sklearn.metrics                 import confusion_matrix
 
 from models.music_emotion_classifier import MusicEmotionClassifier, MusicEmotionClassifierBaseline
+from train_emotion_classifier import train
 
 def encode_bow(xs, vocab_size):
     # Create bag of words
@@ -46,70 +47,6 @@ def train_baseline(x_train, x_test, y_train, y_test):
     accuracy, confusion = evaluate_clf(y_test, y_hat)
     print("Accuracy:", accuracy)
     print(confusion)
-
-def train(model, train_data, test_data, epochs, lr, log_interval=1):
-    model.train()
-
-    criterion = torch.nn.CrossEntropyLoss()
-    optimizer = torch.optim.SGD(model.parameters(), lr=lr, weight_decay=0.01)
-
-    for epoch in range(1, epochs + 1):
-        epoch_start_time = time.time()
-
-        total_loss = 0
-        for batch, (x, y) in enumerate(train_data):
-            # Forward pass
-            x = x.to(device)
-            y = y.to(device)
-            y_hat = model(x)
-
-            # Backward pass
-            optimizer.zero_grad()
-            loss = criterion(y_hat[:,-1,:], y)
-            loss.backward()
-            optimizer.step()
-
-            # print statistics
-            total_loss += loss.item()
-            if batch % log_interval == 0 and batch > 0:
-                num_batches = len(train_data)
-                cur_loss = total_loss / log_interval
-                print(f'| epoch {epoch:3d} | {batch:5d}/{num_batches:5d} batches | '
-                      f'lr {lr:02.5f} | loss {cur_loss:5.2f}')
-
-                total_loss = 0
-
-        # Evaluate model on test set
-        accuracy = evaluate(model, test_data)
-
-        elapsed = time.time() - epoch_start_time
-
-        # Log training statistics for this epoch
-        print('-' * 89)
-        print(f'| end of epoch {epoch:3d} | time: {elapsed:5.2f}s | '
-              f'accuracy {accuracy:5.2f}')
-        print('-' * 89)
-
-def evaluate(model, test_data):
-    model.eval()
-
-    total = 0
-    correct = 0
-    with torch.no_grad():
-        for batch, (x, y) in enumerate(test_data):
-            x = x.to(device)
-            y = y.to(device)
-
-            # Evaluate
-            y_hat = model(x)
-
-            # the class with the highest energy is what we choose as prediction
-            _, y_hat = torch.max(y_hat[:,-1,:].data, dim=1)
-
-            total += y.size(0)
-            correct += (y_hat == y).sum().item()
-
-    return 100 * correct / total
 
 if __name__ == '__main__':
     # Parse arguments

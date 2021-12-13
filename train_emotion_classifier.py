@@ -7,8 +7,11 @@ from vgmidi import VGMidiLabelled
 
 from models.music_emotion_classifier import MusicEmotionClassifier, MusicEmotionClassifierBaseline
 
-def train(model, train_data, test_data, epochs, lr, log_interval=1):
+def train(model, train_data, test_data, epochs, lr):
     model.train()
+
+    best_model = None
+    best_val_loss = 0
 
     criterion = torch.nn.CrossEntropyLoss()
     optimizer = torch.optim.SGD(model.parameters(), lr=lr, weight_decay=0.01)
@@ -16,39 +19,66 @@ def train(model, train_data, test_data, epochs, lr, log_interval=1):
     for epoch in range(1, epochs + 1):
         epoch_start_time = time.time()
 
-        total_loss = 0
-        for batch, (x, y) in enumerate(train_data):
-            # Forward pass
-            x = x.to(device)
-            y = y.to(device)
-            y_hat = model(x)
-
-            # Backward pass
-            optimizer.zero_grad()
-            loss = criterion(y_hat[:,-1,:], y)
-            loss.backward()
-            optimizer.step()
-
-            # print statistics
-            total_loss += loss.item()
-            if batch % log_interval == 0 and batch > 0:
-                num_batches = len(train_data)
-                cur_loss = total_loss / log_interval
-                print(f'| epoch {epoch:3d} | {batch:5d}/{num_batches:5d} batches | '
-                      f'lr {lr:02.5f} | loss {cur_loss:5.2f}')
-
-                total_loss = 0
+        # Train model for one epoch
+        train_step(model, train_data, epoch, lr, criterion, optimizer)
 
         # Evaluate model on test set
-        accuracy = evaluate(model, test_data)
+        val_accuracy = evaluate(model, test_data)
 
         elapsed = time.time() - epoch_start_time
 
         # Log training statistics for this epoch
         print('-' * 89)
         print(f'| end of epoch {epoch:3d} | time: {elapsed:5.2f}s | '
-              f'accuracy {accuracy:5.2f}')
+              f'accuracy {val_accuracy:5.2f}')
+
+        # Save best model so far
+        if val_accuracy > best_val_accuracy:
+            print(f'Validation accuracy improved from {best_val_accuracy:5.2f} to {val_accuracy:5.2f}.'
+                  f'Saving model to {save_to}.')
+
+            best_val_accuracy = val_accuracy
+            save_model(model, optimizer, epoch, save_to)
+
         print('-' * 89)
+
+def train_step(model, train_data, epoch, lr, criterion, optimizer, log_interval=1):
+    model.train()
+    start_time = time.time()
+
+    total_loss = 0
+    for batch, (x, y) in enumerate(train_data):
+        # Forward pass
+        x = x.to(device)
+        y = y.to(device)
+        y_hat = model(x)
+
+        # Backward pass
+        optimizer.zero_grad()
+        loss = criterion(y_hat[:,-1,:], y)
+        loss.backward()
+        optimizer.step()
+
+        # print statistics
+        total_loss += loss.item()
+        if batch % log_interval == 0 and batch > 0:
+            log_stats(optimizer, epoch, batch, len(train_data), total_loss, start_time, log_interval)
+            total_loss = 0
+            start_time = time.time()
+
+def log_stats(optimizer, epoch, batch, num_batches, total_loss, start_time, log_interval):
+    # Get current learning rate
+    lr = optimizer.param_groups[0]['lr']
+
+    # Compute duration of each batch
+    ms_per_batch = (time.time() - start_time) * 1000 / log_interval
+
+    # Compute current loss
+    cur_loss = total_loss / log_interval
+
+    print(f'| epoch {epoch:3d} | {batch:5d}/{num_batches:5d} batches | '
+          f'lr {lr:02.5f} | ms/batch {ms_per_batch:5.2f} | '
+          f'loss {cur_loss:5.2f}')
 
 def evaluate(model, test_data):
     model.eval()
