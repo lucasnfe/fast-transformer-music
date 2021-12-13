@@ -11,7 +11,7 @@ def train(model, train_data, test_data, epochs, lr, log_interval=1):
     model.train()
 
     criterion = torch.nn.CrossEntropyLoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+    optimizer = torch.optim.SGD(model.parameters(), lr=lr, weight_decay=0.01)
 
     for epoch in range(1, epochs + 1):
         epoch_start_time = time.time()
@@ -26,12 +26,6 @@ def train(model, train_data, test_data, epochs, lr, log_interval=1):
             # Backward pass
             optimizer.zero_grad()
             loss = criterion(y_hat[:,-1,:], y)
-
-            # Apply l1 regularization
-            l1_lambda = 0.001
-            l1_norm = sum(p.abs().sum() for p in model.parameters())
-            loss = loss + l1_lambda * l1_norm
-
             loss.backward()
             optimizer.step()
 
