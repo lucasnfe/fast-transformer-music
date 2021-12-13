@@ -7,7 +7,7 @@ PAD_TOKEN = 389
 import json
 import numpy as np
 
-from sklearn.model_selection import GroupShuffleSplit
+from sklearn.model_selection import GroupKFold
 
 class VGMidiEmotion:
     def __init__(self, valence, arousal):
@@ -97,9 +97,22 @@ class VGMidiUnlabelled(torch.utils.data.Dataset):
         return pieces
 
 class VGMidiLabelled(torch.utils.data.Dataset):
-    def __init__(self, midi_csv, seq_len):
+    def __init__(self, midi_csv, seq_len, balance=False, prefix=0):
         self.seq_len = seq_len
-        self.pieces, self.labels = self._load_pieces(midi_csv, seq_len)
+
+        pieces, labels, groups = self._load_pieces(midi_csv, seq_len)
+
+        # Balance data
+        if balance:
+            pieces, labels, groups = self._balance_data(pieces, labels, groups)
+
+        # Generate prefixes of different sizes
+        if prefix > 0:
+            pieces, labels, groups = self._gen_prefixes(pieces, labels, groups, prefix)
+
+        self.pieces = pieces
+        self.labels = labels
+        self.groups = groups
 
     def __len__(self):
         return len(self.pieces)
@@ -116,14 +129,16 @@ class VGMidiLabelled(torch.utils.data.Dataset):
     def _load_pieces(self, midi_csv, seq_len):
         pieces = []
         labels = []
+        groups = []
 
         csv_dir, csv_name = os.path.split(midi_csv)
         for row in csv.DictReader(open(midi_csv, "r")):
-            piece_path = os.path.join(csv_dir, row["piece"])
+            piece_path = os.path.join(csv_dir, row["midi"])
 
             # Make sure the piece has been encoded into a txt file (see encoder.py)
             file_name, extension = os.path.splitext(piece_path)
             if os.path.isfile(file_name + ".txt"):
+
                 # Load entire piece
                 encoded = self._load_txt(file_name + ".txt")
 
@@ -139,9 +154,58 @@ class VGMidiLabelled(torch.utils.data.Dataset):
 
                     pieces.append(piece_seq)
                     labels.append(emotion.get_quadrant())
+                    groups.append(row["game"])
 
-        assert len(pieces) == len(labels)
-        return pieces, labels
+        assert len(pieces) == len(labels) == len(groups)
+        return np.array(pieces), np.array(labels), np.array(groups)
+
+    def _balance_data(self, xs, ys, groups):
+        classes, counts = np.unique(ys, return_counts=True)
+
+        minority_class = classes[np.argmin(counts)]
+        minority_count = counts[np.argmin(counts)]
+
+        # Start balanced dataset with minority data
+        minority_ixs = np.where(ys == minority_class)[0]
+        xs_balanced = xs[minority_ixs]
+        ys_balanced = ys[minority_ixs]
+        groups_balanced = groups[minority_ixs]
+
+        for majority_class in np.delete(classes, np.where(classes == minority_class)):
+            # Get majority data
+            majority_ixs = np.where(ys == majority_class)[0]
+
+            # Downsample majority class
+            majority_ixs = np.random.choice(majority_ixs, minority_count, replace=False)
+
+            xs_balanced = np.vstack((xs_balanced, xs[majority_ixs]))
+            ys_balanced = np.hstack((ys_balanced, ys[majority_ixs]))
+            groups_balanced = np.hstack((groups_balanced, groups[majority_ixs]))
+
+        return xs_balanced, ys_balanced, groups_balanced
+
+    def _gen_prefixes(self, xs, ys, groups, prefix_step):
+        # Generate prefixes
+        x_prefixes = []
+        y_prefixes = []
+        groups_prefixes = []
+
+        for x,y,g in zip(xs, ys, groups):
+            for prefix_size in range(prefix_step, len(x) + prefix_step, prefix_step):
+                prefix = list(x[:prefix_size])
+                if len(prefix) < self.seq_len:
+                    # Pad sequence
+                    prefix += [PAD_TOKEN] * (self.seq_len - len(prefix))
+
+                x_prefixes.append(prefix)
+                y_prefixes.append(y)
+                groups_prefixes.append(g)
+
+        return np.array(x_prefixes), np.array(y_prefixes), np.array(groups_prefixes)
+
+    def k_fold(self, k):
+        group_kfold = GroupKFold(n_splits=k)
+        return group_kfold.split(self.pieces, self.labels, self.groups)
 
     def get_pieces_txt(self):
         pieces = []

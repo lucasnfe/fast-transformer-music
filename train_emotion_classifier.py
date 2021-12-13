@@ -17,40 +17,71 @@ def save_model(model, optimizer, epoch, save_to):
         ),
         model_path)
 
-def train(model, train_data, test_data, epochs, lr, save_to):
-    model.train()
-
-    best_model = None
-    best_val_accuracy = 0
-
-    criterion = torch.nn.CrossEntropyLoss()
-    optimizer = torch.optim.SGD(model.parameters(), lr=lr, weight_decay=0.01)
-
-    for epoch in range(1, epochs + 1):
-        epoch_start_time = time.time()
-
-        # Train model for one epoch
-        train_step(model, train_data, epoch, lr, criterion, optimizer)
-
-        # Evaluate model on test set
-        val_accuracy = evaluate(model, test_data)
-
-        elapsed = time.time() - epoch_start_time
-
-        # Log training statistics for this epoch
+def train(vgmidi, epochs, lr, batch_size, save_to):
+    # Train with kfold cross-validation
+    for fold, (train_ids, test_ids) in enumerate(vgmidi.k_fold(k=10)):
+        print(f'FOLD {fold}')
         print('-' * 89)
-        print(f'| end of epoch {epoch:3d} | time: {elapsed:5.2f}s | '
-              f'accuracy {val_accuracy:5.2f}')
 
-        # Save best model so far
-        if val_accuracy > best_val_accuracy:
-            print(f'Validation accuracy improved from {best_val_accuracy:5.2f} to {val_accuracy:5.2f}.'
-                  f'Saving model to {save_to}.')
+        # Sample elements randomly from a given list of ids, no replacement.
+        train_subsampler = torch.utils.data.SubsetRandomSampler(train_ids)
+        test_subsampler = torch.utils.data.SubsetRandomSampler(test_ids)
 
-            best_val_accuracy = val_accuracy
-            save_model(model, optimizer, epoch, save_to)
+        # Define data loaders for training and testing data in this fold
+        train_data = torch.utils.data.DataLoader(vgmidi, batch_size=batch_size, sampler=train_subsampler)
+        test_data = torch.utils.data.DataLoader(vgmidi, batch_size=batch_size, sampler=test_subsampler)
 
-        print('-' * 89)
+        # Build linear transformer
+        model = MusicEmotionClassifier(n_tokens=opt.vocab_size,
+                                d_query=opt.d_query,
+                                d_model=opt.d_query * opt.n_heads,
+                                seq_len=opt.seq_len,
+                         attention_type="linear",
+                               n_layers=opt.n_layers,
+                                n_heads=opt.n_heads).to(device)
+
+        # Load model
+        model.load_state_dict(torch.load(opt.model, map_location=device)["model_state"])
+
+        # Lock paramters and reset last l
+        for param in model.parameters():
+            param.requires_grad = False
+
+        # Add classification head
+        model = torch.nn.Sequential(model, torch.nn.Linear(opt.vocab_size, 4)).to(device)
+
+        # Define loss function and optimizer
+        criterion = torch.nn.CrossEntropyLoss()
+        optimizer = torch.optim.SGD(model.parameters(), lr=lr, weight_decay=0.01)
+
+        best_model = None
+        best_val_accuracy = 0
+
+        for epoch in range(1, epochs + 1):
+            epoch_start_time = time.time()
+
+            # Train model for one epoch
+            train_step(model, train_data, epoch, lr, criterion, optimizer)
+
+            # Evaluate model on test set
+            val_accuracy = evaluate(model, test_data)
+
+            elapsed = time.time() - epoch_start_time
+
+            # Log training statistics for this epoch
+            print('-' * 89)
+            print(f'| end of epoch {epoch:3d} | time: {elapsed:5.2f}s | '
+                  f'accuracy {val_accuracy:5.2f}')
+
+            # Save best model so far
+            if val_accuracy > best_val_accuracy:
+                print(f'Validation accuracy improved from {best_val_accuracy:5.2f} to {val_accuracy:5.2f}.'
+                      f'Saving model to {save_to}.')
+
+                best_val_accuracy = val_accuracy
+                save_model(model, optimizer, epoch, save_to)
+
+            print('-' * 89)
 
 def train_step(model, train_data, epoch, lr, criterion, optimizer, log_interval=1):
     model.train()
@@ -114,8 +145,7 @@ def evaluate(model, test_data):
 if __name__ == '__main__':
     # Parse arguments
     parser = argparse.ArgumentParser(description='generate.py')
-    parser.add_argument('--train', type=str, required=True, help="Path to train data directory.")
-    parser.add_argument('--test', type=str, required=True, help="Path to train data directory.")
+    parser.add_argument('--vgmidi', type=str, required=True, help="Path to train data directory.")
     parser.add_argument('--model', type=str, required=True, help="Path to load model from.")
     parser.add_argument('--vocab_size', type=int, required=True, help="Vocabulary size.")
     parser.add_argument('--epochs', type=int, default=100, help="Epochs to train.")
@@ -132,30 +162,6 @@ if __name__ == '__main__':
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     # Load data as a flat tensors
-    vgmidi_train = VGMidiLabelled(opt.train, seq_len=opt.seq_len)
-    vgmidi_test = VGMidiLabelled(opt.test, seq_len=opt.seq_len)
+    vgmidi = VGMidiLabelled(opt.vgmidi, seq_len=opt.seq_len, prefix=64)
 
-    # Batchfy flat tensor data
-    train_loader = torch.utils.data.DataLoader(vgmidi_train, batch_size=opt.batch_size, shuffle=True)
-    test_loader = torch.utils.data.DataLoader(vgmidi_test, batch_size=opt.batch_size, shuffle=False)
-
-    # Build linear transformer
-    model = MusicEmotionClassifier(n_tokens=opt.vocab_size,
-                            d_query=opt.d_query,
-                            d_model=opt.d_query * opt.n_heads,
-                            seq_len=opt.seq_len,
-                     attention_type="linear",
-                           n_layers=opt.n_layers,
-                            n_heads=opt.n_heads).to(device)
-
-    # Load model
-    model.load_state_dict(torch.load(opt.model, map_location=device)["model_state"])
-
-    # Lock paramters and reset last l
-    for param in model.parameters():
-        param.requires_grad = False
-
-    # Add classification head
-    model = torch.nn.Sequential(model, torch.nn.Linear(opt.vocab_size, 4)).to(device)
-
-    train(model, train_loader, test_loader, opt.epochs, opt.lr, opt.save_to)
+    train(vgmidi, opt.epochs, opt.lr, opt.batch_size, opt.save_to)
