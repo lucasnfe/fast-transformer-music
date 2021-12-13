@@ -51,7 +51,7 @@ def train(model, train_data, test_data, epochs, lr, log_interval=1):
     model.train()
 
     criterion = torch.nn.CrossEntropyLoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+    optimizer = torch.optim.SGD(model.parameters(), lr=lr, weight_decay=0.01)
 
     for epoch in range(1, epochs + 1):
         epoch_start_time = time.time()
@@ -65,14 +65,7 @@ def train(model, train_data, test_data, epochs, lr, log_interval=1):
 
             # Backward pass
             optimizer.zero_grad()
-
             loss = criterion(y_hat[:,-1,:], y)
-
-            # Apply l1 regularization
-            l1_lambda = 0.001
-            l1_norm = sum(p.abs().sum() for p in model.parameters())
-            loss = loss + l1_lambda * l1_norm
-
             loss.backward()
             optimizer.step()
 
@@ -135,8 +128,8 @@ if __name__ == '__main__':
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     # Load data as a flat tensors
-    vgmidi_train = VGMidiLabelled(opt.train, seq_len=opt.seq_len)
-    vgmidi_test = VGMidiLabelled(opt.test, seq_len=opt.seq_len)
+    vgmidi_train = VGMidiLabelled(opt.train, seq_len=opt.seq_len, balance=True)
+    vgmidi_test = VGMidiLabelled(opt.test, seq_len=opt.seq_len, balance=True)
 
     # Get training data
     x_train = encode_bow(vgmidi_train.get_pieces_txt(), opt.vocab_size)
