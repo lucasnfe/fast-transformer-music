@@ -125,6 +125,7 @@ if __name__ == '__main__':
     parser.add_argument('--n_layers', type=int, default=4, help="Number of transformer layers.")
     parser.add_argument('--d_query', type=int, default=32, help="Dimension of the query matrix.")
     parser.add_argument('--n_heads', type=int, default=8, help="Number of attention heads.")
+    parser.add_argument('--save_to', type=str, required=True, help="Set a file to save the models to.")
     opt = parser.parse_args()
 
     # Set up torch device
