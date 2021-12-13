@@ -11,7 +11,7 @@ def train(model, train_data, test_data, epochs, lr):
     model.train()
 
     best_model = None
-    best_val_loss = 0
+    best_val_accuracy = 0
 
     criterion = torch.nn.CrossEntropyLoss()
     optimizer = torch.optim.SGD(model.parameters(), lr=lr, weight_decay=0.01)
