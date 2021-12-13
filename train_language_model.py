@@ -22,14 +22,13 @@ def train(model, train_data, test_data, epochs, lr, save_to):
     best_val_loss = float('inf')
 
     criterion = torch.nn.CrossEntropyLoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.1)
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=0.01)
 
     for epoch in range(1, epochs + 1):
         epoch_start_time = time.time()
 
         # Train model for one epoch
-        train_step(model, train_data, epoch, lr, criterion, optimizer, scheduler)
+        train_step(model, train_data, epoch, lr, criterion, optimizer)
 
         # Evaluate model on test set
         val_loss = evaluate(model, test_data, criterion)
@@ -54,12 +53,9 @@ def train(model, train_data, test_data, epochs, lr, save_to):
 
         print('-' * 89)
 
-        # Advance one epoch of the learning rate scheduler
-        scheduler.step()
-
     return best_model
 
-def train_step(model, train_data, epoch, lr, criterion, optimizer, scheduler, log_interval=100):
+def train_step(model, train_data, epoch, lr, criterion, optimizer, log_interval=100):
     model.train()
     start_time = time.time()
 
@@ -79,13 +75,13 @@ def train_step(model, train_data, epoch, lr, criterion, optimizer, scheduler, lo
         # Log training statistics
         total_loss += loss.item()
         if batch % log_interval == 0 and batch > 0:
-            log_stats(scheduler, epoch, batch, len(train_data), total_loss, start_time, log_interval)
+            log_stats(optimizer, epoch, batch, len(train_data), total_loss, start_time, log_interval)
             total_loss = 0
             start_time = time.time()
 
-def log_stats(scheduler, epoch, batch, num_batches, total_loss, start_time, log_interval):
+def log_stats(optimizer, epoch, batch, num_batches, total_loss, start_time, log_interval):
     # Get current learning rate
-    lr = scheduler.get_last_lr()[0]
+    lr = optimizer.param_groups[0]['lr']
 
     # Compute duration of each batch
     ms_per_batch = (time.time() - start_time) * 1000 / log_interval
