@@ -7,7 +7,17 @@ from vgmidi import VGMidiLabelled
 
 from models.music_emotion_classifier import MusicEmotionClassifier, MusicEmotionClassifierBaseline
 
-def train(model, train_data, test_data, epochs, lr):
+def save_model(model, optimizer, epoch, save_to):
+    model_path = save_to.format(epoch)
+    torch.save(
+        dict(
+            model_state=model.state_dict(),
+            optimizer_state=optimizer.state_dict(),
+            epoch=epoch
+        ),
+        model_path)
+
+def train(model, train_data, test_data, epochs, lr, save_to):
     model.train()
 
     best_model = None
@@ -147,4 +157,4 @@ if __name__ == '__main__':
     # Add classification head
     model = torch.nn.Sequential(model, torch.nn.Linear(opt.vocab_size, 4)).to(device)
 
-    train(model, train_loader, test_loader, opt.epochs, opt.lr)
+    train(model, train_loader, test_loader, opt.epochs, opt.lr, opt.save_to)
