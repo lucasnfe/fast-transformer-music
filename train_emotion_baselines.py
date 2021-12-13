@@ -59,6 +59,7 @@ if __name__ == '__main__':
     parser.add_argument('--lr', type=float, default=0.0001, help="Learning rate.")
     parser.add_argument('--seq_len', type=int, required=True, help="Max sequence to process.")
     parser.add_argument('--d_model', type=int, required=True, help="Model dimensions.")
+    parser.add_argument('--save_to', type=str, required=True, help="Set a file to save the models to.")
     opt = parser.parse_args()
 
     # Set up torch device
@@ -82,4 +83,4 @@ if __name__ == '__main__':
     model = MusicEmotionClassifierBaseline(n_tokens=opt.vocab_size,
                                             d_model=opt.d_model).to(device)
 
-    train(model, train_loader, test_loader, opt.epochs, opt.lr)
+    train(model, train_loader, test_loader, opt.epochs, opt.lr, opt.save_to)
