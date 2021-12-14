@@ -62,13 +62,14 @@ class MusicEmotionClassifier(torch.nn.Module):
 
     def forward(self, x):
         x = x.view(x.shape[0], -1)
+
+        lengths = (x != PAD_TOKEN).sum(dim=-1)
+        length_mask = LengthMask(lengths, max_len=x.shape[1], device=x.device)
+
         x = self.value_embedding(x)
         x = self.pos_embedding(x)
 
-        lengths = (x != PAD_TOKEN).sum(dim=-1)
-        length_mask = LengthMask(lengths=lengths, device=x.device)
-
-        y_hat = self.transformer(x, attn_mask=length_mask)
+        y_hat = self.transformer(x, length_mask=length_mask)
         y_hat = self.predictor(y_hat)
 
         return y_hat
