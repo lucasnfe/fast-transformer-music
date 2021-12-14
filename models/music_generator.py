@@ -1,7 +1,7 @@
 import torch
 import math
 
-from fast_transformers.masking import LengthMask, TriangularCausalMask
+from fast_transformers.masking import TriangularCausalMask
 from fast_transformers.builders import TransformerEncoderBuilder
 
 class PositionalEncoding(torch.nn.Module):

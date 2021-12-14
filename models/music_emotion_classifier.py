@@ -1,8 +1,10 @@
 import torch
 import math
 
-from fast_transformers.masking import LengthMask, TriangularCausalMask
+from fast_transformers.masking import LengthMask
 from fast_transformers.builders import TransformerEncoderBuilder
+
+PAD_TOKEN = 389
 
 class PositionalEncoding(torch.nn.Module):
     def __init__(self, d_model, dropout=0.1, max_len=5000):
@@ -63,7 +65,10 @@ class MusicEmotionClassifier(torch.nn.Module):
         x = self.value_embedding(x)
         x = self.pos_embedding(x)
 
-        y_hat = self.transformer(x)
+        lengths = (x != PAD_TOKEN).sum(dim=-1)
+        length_mask = LengthMask(lengths=lengths)
+
+        y_hat = self.transformer(x, attn_mask=length_mask)
         y_hat = self.predictor(y_hat)
 
         return y_hat
