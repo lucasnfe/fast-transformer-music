@@ -66,9 +66,9 @@ class MusicEmotionClassifier(torch.nn.Module):
         x = self.pos_embedding(x)
 
         lengths = (x != PAD_TOKEN).sum(dim=-1)
-        length_mask = LengthMask(lengths=lengths)
+        length_mask = LengthMask(lengths=lengths, device=x.device)
 
-        y_hat = self.transformer(x, attn_mask=length_mask, device=x.device)
+        y_hat = self.transformer(x, attn_mask=length_mask)
         y_hat = self.predictor(y_hat)
 
         return y_hat
