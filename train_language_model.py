@@ -22,7 +22,7 @@ def train(model, train_data, test_data, epochs, lr, save_to):
     best_val_loss = float('inf')
 
     criterion = torch.nn.CrossEntropyLoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=0.01)
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 
     for epoch in range(1, epochs + 1):
         epoch_start_time = time.time()
