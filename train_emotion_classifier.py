@@ -36,7 +36,7 @@ def train(vgmidi, epochs, lr, batch_size, save_to):
                                 d_query=opt.d_query,
                                 d_model=opt.d_query * opt.n_heads,
                                 seq_len=opt.seq_len,
-                         attention_type="linear",
+                         attention_type="causal-linear",
                                n_layers=opt.n_layers,
                                 n_heads=opt.n_heads).to(device)
 
