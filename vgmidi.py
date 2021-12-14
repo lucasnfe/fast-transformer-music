@@ -2,7 +2,7 @@ import os
 import torch
 import csv
 
-PAD_TOKEN = 389
+PAD_TOKEN = 390
 
 import json
 import numpy as np

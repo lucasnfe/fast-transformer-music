@@ -4,7 +4,7 @@ import math
 from fast_transformers.masking import LengthMask,TriangularCausalMask
 from fast_transformers.builders import TransformerEncoderBuilder
 
-PAD_TOKEN = 389
+PAD_TOKEN = 390
 
 class PositionalEncoding(torch.nn.Module):
     def __init__(self, d_model, dropout=0.1, max_len=5000):
@@ -64,7 +64,7 @@ class MusicGenerator(torch.nn.Module):
         x = x.view(x.shape[0], -1)
 
         # Length Mask
-        lengths = (x != PAD_TOKEN).sum(dim=-1) + 1
+        lengths = (x != PAD_TOKEN).sum(dim=-1)
         length_mask = LengthMask(lengths, max_len=x.shape[1], device=x.device)
 
         x = self.value_embedding(x)

@@ -4,7 +4,7 @@ import math
 from fast_transformers.masking import LengthMask
 from fast_transformers.builders import TransformerEncoderBuilder
 
-PAD_TOKEN = 389
+PAD_TOKEN = 390
 
 class PositionalEncoding(torch.nn.Module):
     def __init__(self, d_model, dropout=0.1, max_len=5000):
