@@ -152,10 +152,12 @@ if __name__ == '__main__':
     model.load_state_dict(torch.load(opt.model, map_location=device)["model_state"])
 
     # Lock paramters and reset last l
-    for param in model.parameters():
-        param.requires_grad = False
+    # for param in model.parameters():
+    #     param.requires_grad = False
 
     # Add classification head
-    model = torch.nn.Sequential(model, torch.nn.Linear(opt.vocab_size, 4)).to(device)
+    model = torch.nn.Sequential(model,
+                                torch.nn.Dropout(0.1),
+                                torch.nn.Linear(opt.vocab_size, 4)).to(device)
 
     train(model, train_loader, test_loader, opt.epochs, opt.lr, opt.save_to)

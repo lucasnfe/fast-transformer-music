@@ -61,8 +61,6 @@ class MusicEmotionClassifier(torch.nn.Module):
         self.predictor = torch.nn.Linear(hidden_size, n_tokens)
 
     def forward(self, x):
-        x = x.view(x.shape[0], -1)
-
         lengths = (x != PAD_TOKEN).sum(dim=-1)
         length_mask = LengthMask(lengths, max_len=x.shape[1], device=x.device)
 
