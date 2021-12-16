@@ -99,12 +99,7 @@ class VGMidiUnlabelled(torch.utils.data.Dataset):
 class VGMidiLabelled(torch.utils.data.Dataset):
     def __init__(self, midi_csv, seq_len, balance=False, prefix=0):
         self.seq_len = seq_len
-
         pieces, labels, groups = self._load_pieces(midi_csv, seq_len)
-
-        # Balance data
-        if balance:
-            pieces, labels, groups = self._balance_data(pieces, labels, groups)
 
         # Generate prefixes of different sizes
         if prefix > 0:
@@ -159,31 +154,6 @@ class VGMidiLabelled(torch.utils.data.Dataset):
         assert len(pieces) == len(labels) == len(groups)
         return np.array(pieces), np.array(labels), np.array(groups)
 
-    def _balance_data(self, xs, ys, groups):
-        classes, counts = np.unique(ys, return_counts=True)
-
-        minority_class = classes[np.argmin(counts)]
-        minority_count = counts[np.argmin(counts)]
-
-        # Start balanced dataset with minority data
-        minority_ixs = np.where(ys == minority_class)[0]
-        xs_balanced = xs[minority_ixs]
-        ys_balanced = ys[minority_ixs]
-        groups_balanced = groups[minority_ixs]
-
-        for majority_class in np.delete(classes, np.where(classes == minority_class)):
-            # Get majority data
-            majority_ixs = np.where(ys == majority_class)[0]
-
-            # Downsample majority class
-            majority_ixs = np.random.choice(majority_ixs, minority_count, replace=False)
-
-            xs_balanced = np.vstack((xs_balanced, xs[majority_ixs]))
-            ys_balanced = np.hstack((ys_balanced, ys[majority_ixs]))
-            groups_balanced = np.hstack((groups_balanced, groups[majority_ixs]))
-
-        return xs_balanced, ys_balanced, groups_balanced
-
     def _gen_prefixes(self, xs, ys, groups, prefix_step):
         # Generate prefixes
         x_prefixes = []
@@ -202,10 +172,6 @@ class VGMidiLabelled(torch.utils.data.Dataset):
                 groups_prefixes.append(g)
 
         return np.array(x_prefixes), np.array(y_prefixes), np.array(groups_prefixes)
-
-    def k_fold(self, k):
-        group_kfold = GroupKFold(n_splits=k)
-        return group_kfold.split(self.pieces, self.labels, self.groups)
 
     def get_pieces_txt(self):
         pieces = []

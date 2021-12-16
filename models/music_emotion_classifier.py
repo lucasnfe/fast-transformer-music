@@ -6,6 +6,10 @@ from fast_transformers.builders import TransformerEncoderBuilder
 
 PAD_TOKEN = 390
 
+class GlobalAveragePooling(torch.nn.Module):
+    def forward(self, x):
+        return torch.mean(x, dim=1)
+
 class PositionalEncoding(torch.nn.Module):
     def __init__(self, d_model, dropout=0.1, max_len=5000):
         super(PositionalEncoding, self).__init__()
