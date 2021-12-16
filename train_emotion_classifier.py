@@ -5,7 +5,7 @@ import numpy as np
 
 from vgmidi import VGMidiLabelled
 
-from models.music_emotion_classifier import GlobalAveragePooling, MusicEmotionClassifier, MusicEmotionClassifierBaseline
+from models.music_emotion_classifier import MusicEmotionClassifier, MusicEmotionClassifierBaseline
 
 def save_model(model, optimizer, epoch, save_to):
     model_path = save_to.format(epoch)
@@ -156,8 +156,6 @@ if __name__ == '__main__':
         param.requires_grad = False
 
     # Add classification head
-    model = torch.nn.Sequential(model, GlobalAveragePooling(),
-                                       torch.nn.Dropout(0.1),
-                                       torch.nn.Linear(opt.vocab_size, 4)).to(device)
+    model = torch.nn.Sequential(model, torch.nn.Linear(opt.vocab_size, 4)).to(device)
 
     train(model, train_loader, test_loader, opt.epochs, opt.lr, opt.save_to)

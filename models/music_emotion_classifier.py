@@ -6,10 +6,6 @@ from fast_transformers.builders import TransformerEncoderBuilder
 
 PAD_TOKEN = 390
 
-class GlobalAveragePooling(torch.nn.Module):
-    def forward(self, x):
-        return torch.mean(x, dim=1)
-
 class PositionalEncoding(torch.nn.Module):
     def __init__(self, d_model, dropout=0.1, max_len=5000):
         super(PositionalEncoding, self).__init__()
@@ -74,7 +70,12 @@ class MusicEmotionClassifier(torch.nn.Module):
         x = self.pos_embedding(x)
 
         y_hat = self.transformer(x, length_mask=length_mask)
+
+        # Classification head
         y_hat = self.predictor(y_hat)
+
+        # Pool logits considering their lengths
+        y_hat = y_hat[range(x.shape[0]), lengths - 1]
 
         return y_hat
 
