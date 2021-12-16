@@ -1,13 +1,12 @@
 import os
 import torch
 import csv
-
-PAD_TOKEN = 390
-
 import json
 import numpy as np
 
 from sklearn.model_selection import GroupKFold
+
+PAD_TOKEN = 390
 
 class VGMidiEmotion:
     def __init__(self, valence, arousal):
@@ -15,7 +14,7 @@ class VGMidiEmotion:
         assert arousal in (-1, 1)
 
         self.va = np.array([valence, arousal])
-        self.quad2emotion = {0: "happy", 1: "angry", 2: "sad", 3: "calm"}
+        self.quad2emotion = {0: "q1", 1: "q2", 2: "q3", 3: "q4"}
 
     def __eq__(self, other):
         if other == None:
@@ -137,19 +136,19 @@ class VGMidiLabelled(torch.utils.data.Dataset):
                 # Load entire piece
                 encoded = self._load_txt(file_name + ".txt")
 
+                # Time encoded piece to max len
+                encoded = encoded[:seq_len]
+
+                # Pad sequence
+                if len(encoded) < seq_len:
+                    encoded += [PAD_TOKEN] * (seq_len - len(encoded))
+
                 # Get emotion
                 emotion = VGMidiEmotion(int(row["valence"]), int(row["arousal"]))
 
-                # Split the piece into sequences of len seq_len
-                for i in range(0, len(encoded), seq_len):
-                    piece_seq = encoded[i:i+seq_len]
-                    if len(piece_seq) < seq_len:
-                        # Pad sequence
-                        piece_seq += [PAD_TOKEN] * (seq_len - len(piece_seq))
-
-                    pieces.append(piece_seq)
-                    labels.append(emotion.get_quadrant())
-                    groups.append(row["game"])
+                pieces.append(encoded)
+                labels.append(emotion.get_quadrant())
+                groups.append(row["game"])
 
         assert len(pieces) == len(labels) == len(groups)
         return np.array(pieces), np.array(labels), np.array(groups)
