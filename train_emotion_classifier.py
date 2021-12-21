@@ -112,9 +112,7 @@ def evaluate(model, test_data):
             ys += y.tolist()
             ys_hat += y_hat.tolist()
 
-    correct = (np.array(ys) == np.array(ys_hat)).sum()
-    
-    accuracy = 100 * correct / len(ys)
+    accuracy = np.mean(np.array(ys) == np.array(ys_hat))
     confusion = confusion_matrix(ys, ys_hat)
 
     return accuracy, confusion
