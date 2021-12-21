@@ -40,7 +40,7 @@ def train(model, train_data, test_data, epochs, lr, save_to):
         # Log training statistics for this epoch
         print('-' * 89)
         print(f'| end of epoch {epoch:3d} | time: {elapsed:5.2f}s | '
-              f'accuracy {val_accuracy:5.2f}')
+              f'accuracy {val_accuracy:5.2f} | best val accuracy: {best_val_accuracy:5.2f} ')
 
         # Save best model so far
         if val_accuracy > best_val_accuracy:
