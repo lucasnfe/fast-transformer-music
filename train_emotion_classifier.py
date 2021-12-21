@@ -33,7 +33,7 @@ def train(model, train_data, test_data, epochs, lr, save_to):
         train_step(model, train_data, epoch, lr, criterion, optimizer)
 
         # Evaluate model on test set
-        val_accuracy = evaluate(model, test_data)
+        val_accuracy, confusion = evaluate(model, test_data)
 
         elapsed = time.time() - epoch_start_time
 
@@ -46,6 +46,8 @@ def train(model, train_data, test_data, epochs, lr, save_to):
         if val_accuracy > best_val_accuracy:
             print(f'Validation accuracy improved from {best_val_accuracy:5.2f} to {val_accuracy:5.2f}.'
                   f'Saving model to {save_to}.')
+
+            print(confusion)
 
             best_val_accuracy = val_accuracy
             save_model(model, optimizer, epoch, save_to)
@@ -93,8 +95,8 @@ def log_stats(optimizer, epoch, batch, num_batches, total_loss, start_time, log_
 def evaluate(model, test_data):
     model.eval()
 
-    ys = torch.empty(0)
-    ys_hat = torch.empty(0)
+    ys = []
+    ys_hat = []
 
     with torch.no_grad():
         for batch, (x, y) in enumerate(test_data):
@@ -107,14 +109,15 @@ def evaluate(model, test_data):
             # the class with the highest energy is what we choose as prediction
             _, y_hat = torch.max(y_hat.view(-1, 4).data, dim=1)
 
-            ys = torch.cat((ys, y), dim=1)
-            ys_hat = torch.cat((ys_hat, y_hat), dim=1)
+            ys += y.tolist()
+            ys_hat += y_hat.tolist()
 
-    print(ys)
-    print(ys_hat)
-    quit()
+    correct = (np.array(ys) == np.array(ys_hat)).sum()
+    
+    accuracy = 100 * correct / len(ys)
+    confusion = confusion_matrix(ys, ys_hat)
 
-    return 100 * correct / total
+    return accuracy, confusion
 
 if __name__ == '__main__':
     # Parse arguments
