@@ -4,7 +4,7 @@ import argparse
 import numpy as np
 
 from vgmidi import VGMidiLabelled
-
+from sklearn.metrics import confusion_matrix
 from models.music_emotion_classifier import MusicEmotionClassifier, MusicEmotionClassifierBaseline
 
 def save_model(model, optimizer, epoch, save_to):
@@ -93,8 +93,9 @@ def log_stats(optimizer, epoch, batch, num_batches, total_loss, start_time, log_
 def evaluate(model, test_data):
     model.eval()
 
-    total = 0
-    correct = 0
+    ys = torch.empty(0)
+    ys_hat = torch.empty(0)
+
     with torch.no_grad():
         for batch, (x, y) in enumerate(test_data):
             x = x.to(device)
@@ -106,8 +107,12 @@ def evaluate(model, test_data):
             # the class with the highest energy is what we choose as prediction
             _, y_hat = torch.max(y_hat.view(-1, 4).data, dim=1)
 
-            total += y.size(0)
-            correct += (y_hat == y).sum().item()
+            ys = torch.cat((ys, y), dim=1)
+            ys_hat = torch.cat((ys_hat, y_hat), dim=1)
+
+    print(ys)
+    print(ys_hat)
+    quit()
 
     return 100 * correct / total
 
