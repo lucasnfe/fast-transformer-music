@@ -31,5 +31,5 @@ for i in `seq 0 $DATA_RANGE`; do
     $PYTHON $TRAINER --train $TRAIN_SET --test $TEST_SET --epochs $EPOCHS \
                      --seq_len $SEQ_LEN --vocab_size $VOCAB_SIZE \
                      --model $MODEL --n_layers $N_LAYERS --batch_size $BATCH_SIZE \
-                     --lr $LR --prefix $PREFIX --save_to ${SAVE_TO}/emotion_classifier_${i2}.pth
+                     --lr $LR --prefix $PREFIX --save_to ${SAVE_TO}/emotion_classifier_${i}.pth
 done
