@@ -54,7 +54,7 @@ def train(model, train_data, test_data, epochs, lr, save_to):
 
         print('-' * 89)
 
-def train_step(model, train_data, epoch, lr, criterion, optimizer, log_interval=1):
+def train_step(model, train_data, epoch, lr, criterion, optimizer, log_interval=50):
     model.train()
     start_time = time.time()
 
