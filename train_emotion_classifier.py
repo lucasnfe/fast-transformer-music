@@ -7,6 +7,11 @@ from vgmidi import VGMidiLabelled
 from sklearn.metrics import confusion_matrix
 from models.music_emotion_classifier import MusicEmotionClassifier, MusicEmotionClassifierBaseline
 
+# Reproducitility
+np.random.seed(42)
+torch.manual_seed(42)
+torch.use_deterministic_algorithms(True)
+
 def save_model(model, optimizer, epoch, save_to):
     model_path = save_to.format(epoch)
     torch.save(
