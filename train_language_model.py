@@ -10,7 +10,6 @@ from models.music_generator import MusicGenerator
 # Reproducitility
 np.random.seed(42)
 torch.manual_seed(42)
-torch.use_deterministic_algorithms(True)
 
 def save_model(model, optimizer, epoch, save_to):
     model_path = save_to.format(epoch)
