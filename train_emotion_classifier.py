@@ -160,7 +160,9 @@ if __name__ == '__main__':
                             n_heads=opt.n_heads).to(device)
 
     # Load model
-    model.load_state_dict(torch.load(opt.model, map_location=device)["model_state"])
+    if opt.model:
+        print(f'Fine-tuning model {opt.model}')
+        model.load_state_dict(torch.load(opt.model, map_location=device)["model_state"])
 
     # Lock paramters and reset last l
     # for param in model.parameters():
