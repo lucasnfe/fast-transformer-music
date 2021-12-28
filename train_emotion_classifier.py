@@ -123,16 +123,17 @@ def evaluate(model, test_data):
 
 if __name__ == '__main__':
     # Parse arguments
-    parser = argparse.ArgumentParser(description='generate.py')
+    parser = argparse.ArgumentParser(description='train_emotion_classifier.py')
     parser.add_argument('--train', type=str, required=True, help="Path to train data directory.")
     parser.add_argument('--test', type=str, required=True, help="Path to train data directory.")
-    parser.add_argument('--model', type=str, required=True, help="Path to load model from.")
+    parser.add_argument('--pre_trained', type=str, required=True, help="Path to load model from.")
     parser.add_argument('--vocab_size', type=int, required=True, help="Vocabulary size.")
     parser.add_argument('--epochs', type=int, default=100, help="Epochs to train.")
     parser.add_argument('--batch_size', type=int, default=32, help="Batch size.")
     parser.add_argument('--lr', type=float, default=0.0001, help="Learning rate.")
     parser.add_argument('--seq_len', type=int, required=True, help="Max sequence to process.")
     parser.add_argument('--n_layers', type=int, default=4, help="Number of transformer layers.")
+    parser.add_argument('--n_finetune', type=int, default=4, help="Number of transformer layers to finetune.")
     parser.add_argument('--d_query', type=int, default=32, help="Dimension of the query matrix.")
     parser.add_argument('--n_heads', type=int, default=8, help="Number of attention heads.")
     parser.add_argument('--prefix', type=int, default=0, help="Traing with different prefix sizes.")
@@ -160,13 +161,15 @@ if __name__ == '__main__':
                             n_heads=opt.n_heads).to(device)
 
     # Load model
-    if opt.model:
-        print(f'Fine-tuning model {opt.model}')
-        model.load_state_dict(torch.load(opt.model, map_location=device)["model_state"])
+    if opt.pre_trained:
+        print(f'Fine-tuning model {opt.pre_trained}')
+        model.load_state_dict(torch.load(opt.pre_trained, map_location=device)["model_state"])
 
-    # Lock paramters and reset last l
-    # for param in model.parameters():
-    #     param.requires_grad = False
+        # Lock paramters and reset last l
+        for i, layer in enumerate(model.transformer.layers):
+            if i < opt.n_finetune:
+                for param in layer.parameters():
+                    param.requires_grad = False
 
     # Add classification head
     model = torch.nn.Sequential(model,
