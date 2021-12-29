@@ -18,23 +18,16 @@ class PieceState():
             return None
 
         with torch.no_grad():
-            # Otherwise, add the top_k tokens
-            sequence = torch.tensor(self.sequence[self.i]).unsqueeze(dim=0)
-
-            # print("memory", self.memory)
             print("i", self.i)
-            print("sequence", sequence)
+            print("sequence", self.sequence, self.sequence[self.i:self.i+1])
 
-            y_i, memory = language_model(sequence, i=self.i, memory=self.memory)
-            probs = torch.softmax(y_i, dim=1)
-
-            top_probs, top_tokens = torch.topk(probs, top_k, sorted=False, dim=1)
-            top_tokens = top_tokens.squeeze().numpy()
-            top_probs = top_probs.squeeze().numpy()
+            x_i = self.sequence[self.i:self.i+1].unsqueeze(0)
+            y_i, memory = language_model(x_i, i=self.i, memory=self.memory)
+            top_probs, top_tokens = torch.topk(torch.softmax(y_i, dim=1), top_k, sorted=False, dim=1)
 
         children = []
         probabilities = {}
-        for t,p in zip(top_tokens, top_probs):
+        for t,p in zip(top_tokens.squeeze(), top_probs.squeeze()):
             child = self.add_token(t, p, max_len, memory)
             children.append(child)
             probabilities[child] = p
@@ -42,25 +35,25 @@ class PieceState():
         return set(children), probabilities
 
     def add_token(self, token, p, max_len, memory):
-        sequence = self.sequence + [token]
-        sequence_score = p
-        is_terminal = len(sequence) >= max_len or token == END_TOKEN
+        sequence = torch.cat((self.sequence, token.unsqueeze(0)), dim=0)
+        sequence_score = float(p)
+        is_terminal = sequence.shape[-1] >= max_len or token == END_TOKEN
         return PieceState(sequence, self.i + 1, memory, sequence_score, is_terminal)
 
     def is_terminal(self):
         return self.terminal
 
     def __hash__(self):
-        return hash(tuple(self.sequence))
+        return hash(self.sequence)
 
     def __eq__(self, other):
-        return self.sequence == other.sequence
+        return (self.sequence == other.sequence).all()
 
     def __str__(self):
         return "[" + ", ".join([str(t) for t in self.sequence]) + "]"
 
     def __len__(self):
-        return len(self.sequence)
+        return self.sequence.shape[-1]
 
 class MCTS:
     "Monte Carlo tree searcher. First rollout the tree then choose a move."
@@ -87,14 +80,14 @@ class MCTS:
         if node.is_terminal():
             raise RuntimeError(f'choose called on terminal node {node}')
 
-        C = np.array([c for c in self.children[node]])
+        C = [c for c in self.children[node]]
         N = np.array([self.Nsa[node][c] if c in self.Nsa[node] else 0 for c in self.children[node]])
         N = N**(1/self.temperature)
 
         print("C:", [c.sequence for c in C])
         print("N:", N/np.sum(N))
         sampled_child = np.random.choice(len(N), size=1, p=N/np.sum(N))[0]
-        
+
         return C[sampled_child]
 
     def step(self, node):

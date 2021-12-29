@@ -73,7 +73,7 @@ def generate(language_model, emotion_classifier, emotion, seq_len, prime, roll_s
     except KeyboardInterrupt:
         print("Exiting due to keyboard interrupt.")
 
-    return piece.sequence
+    return [int(token) for token in piece.sequence]
 
 if __name__ == "__main__":
     # Parse arguments
@@ -98,6 +98,7 @@ if __name__ == "__main__":
 
     # Define prime sequence
     prime = [START_TOKEN]
+    prime = torch.tensor(prime).to(device)
 
     piece = generate(language_model, emotion_classifier, opt.emotion, opt.seq_len, prime)
     decode_midi(piece, "results/generated_piece_mcts.mid")
