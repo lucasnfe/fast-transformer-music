@@ -11,9 +11,10 @@ import argparse
 
 from encoder import decode_midi
 from torch.distributions.categorical import Categorical
-from fast_transformers.builders import RecurrentEncoderBuilder
+from models.music_generator_recurrent import RecurrentMusicGenerator
 
 START_TOKEN = 388
+END_TOKEN = 389
 
 def filter_top_p(y_hat, p, filter_value=-float("Inf")):
     sorted_logits, sorted_indices = torch.sort(y_hat, descending=True)
@@ -54,7 +55,7 @@ def sample_tokens(y_hat, num_samples=1):
     random_idx = torch.multinomial(probs, num_samples)
     return random_idx
 
-def generate(model, prime, n, k=0, p=0, temperature=1.0):
+def generate(model, prime, seq_len, k=0, p=0, temperature=1.0):
     memory = None
     y_hat = []
     x_hat = []
@@ -67,7 +68,7 @@ def generate(model, prime, n, k=0, p=0, temperature=1.0):
         y_hat.append(y_i)
 
     # Generate new tokens
-    for i in range(prime_len, prime_len + n):
+    for i in range(prime_len, seq_len):
         # Apply temperature filter
         y_i = y_hat[-1]/temperature
 
@@ -77,7 +78,14 @@ def generate(model, prime, n, k=0, p=0, temperature=1.0):
         if p > 0 and p < 1.0:
             y_i = filter_top_p(y_i, p)
 
+        # sample new token
         x_hat.append(sample_tokens(y_i))
+
+        # Stop if end-of-piece token
+        if int(x_hat[-1]) == END_TOKEN:
+            print("End of piece reached...", "stopping...")
+            break
+
         y_i, memory = model(x_hat[-1], i=i, memory=memory)
         y_hat.append(y_i)
 
@@ -97,7 +105,7 @@ def generate_beam_search(model, prime, n, beam_size, k=0, p=0, temperature=1.0):
 
     prime_len = prime.shape[1]
     for i in range(prime_len):
-        x_hat.append(prime[:,i])
+        x_hat.append(prime[:,i:i+1])
         y_i, memory = model(x_hat[-1], i=i, memory=memory)
         y_hat.append(y_i)
 
@@ -211,6 +219,6 @@ if __name__ == '__main__':
 
     # Generate continuation
     # piece = generate_beam_search(model, prime, n=1000, beam_size=8, k=opt.k, p=opt.p, temperature=opt.t)
-    piece = generate(model, prime, n=1000, k=opt.k, p=opt.p, temperature=opt.t)
+    piece = generate(model, prime, opt.seq_len, opt.k, opt.p, temperature=opt.t)
     decode_midi(piece, "results/generated_piece.mid")
     print(piece)
