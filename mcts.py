@@ -123,7 +123,7 @@ class MCTS:
         "Returns the reward for a random simulation (to completion) of `node`"
         with torch.no_grad():
             # Emotion score
-            sequence = torch.tensor(node.sequence, dtype=torch.int).unsqueeze(0)
+            sequence = node.sequence.unsqueeze(0)
             emotion_score = torch.softmax(self.emotion_classifier(sequence), dim=1)
             emotion_score = float(emotion_score.squeeze()[self.emotion])
 
