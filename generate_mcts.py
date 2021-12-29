@@ -98,7 +98,7 @@ if __name__ == "__main__":
 
     # Define prime sequence
     prime = [START_TOKEN]
-    prime = torch.tensor(prime).to(device)
+    prime = torch.tensor(prime, dtype=torch.int64).to(device)
 
     piece = generate(language_model, emotion_classifier, opt.emotion, opt.seq_len, prime)
     decode_midi(piece, "results/generated_piece_mcts.mid")
