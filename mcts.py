@@ -8,8 +8,7 @@ END_TOKEN = 389
 
 class MCTS:
     "Monte Carlo tree searcher. First rollout the tree then choose a move."
-    def __init__(self, language_model, vocab_size, temperature=1.0, top_k=0, max_len=512, c_puct=1,
-                       emotion_classifier=None, emotion=None):
+    def __init__(self, language_model, emotion_classifier, emotion, vocab_size, device, seq_len=512, temperature=1.0, k=0, c=1):
 
         self.Qsa = {} # stores Q values for s,a (as defined in the paper)
         self.Nsa = {} # stores #times edge s,a was visited
@@ -19,11 +18,12 @@ class MCTS:
         self.language_model = language_model
         self.emotion_classifier = emotion_classifier
         self.emotion = emotion
-        self.vocab_size = vocab_size
+        self.device = device
 
-        self.top_k = top_k
-        self.c_puct = c_puct
-        self.max_len = max_len
+        self.k = k
+        self.c = c
+        self.seq_len = seq_len
+        self.vocab_size = vocab_size
         self.temperature = temperature
 
     def diff_distros(self, old, new):
@@ -65,10 +65,10 @@ class MCTS:
         return random_idx
 
     def _get_next_state(self, state, token):
-        return torch.cat((state, torch.tensor([[token]])), dim=1)
+        return torch.cat((state, torch.tensor([[token]]).to(self.device)), dim=1)
 
     def _is_terminal(self, state):
-        return state.shape[-1] >= self.max_len or int(state[-1,-1]) == END_TOKEN
+        return state.shape[-1] >= self.seq_len or int(state[-1,-1]) == END_TOKEN
 
     def _get_string_representation(self, state):
         return " ".join([str(int(token)) for token in state[-1]])
@@ -118,7 +118,7 @@ class MCTS:
             y_i = self.language_model(state)[:,-1,:]
 
             # Filter top_k tokens
-            y_i = filter_top_k(y_i, self.top_k)
+            y_i = filter_top_k(y_i, self.k)
 
             # Compute probability of the top_k token
             y_i = torch.softmax(y_i, dim=1)
@@ -145,10 +145,10 @@ class MCTS:
             # Check if if is a valid move
             if self.Ps[s][token] > 0:
                 if (s, token) in self.Qsa:
-                    u = self.Qsa[(s, token)] + self.c_puct * self.Ps[s][token] * np.sqrt(self.Ns[s])/(
+                    u = self.Qsa[(s, token)] + self.c * self.Ps[s][token] * np.sqrt(self.Ns[s])/(
                             1 + self.Nsa[(s, token)])
                 else:
-                    u = self.c_puct * self.Ps[s][token] * np.sqrt(self.Ns[s] + eps)
+                    u = self.c * self.Ps[s][token] * np.sqrt(self.Ns[s] + eps)
 
                 if u > cur_best:
                     cur_best = u

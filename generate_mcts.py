@@ -47,15 +47,14 @@ def load_emotion_classifier(model, vocab_size, d_query, n_layers, n_heads, seq_l
 
     return emotion_classifier
 
-def generate(language_model, emotion_classifier, emotion, seq_len, vocab_size, piece, roll_steps=30, c_uct=1.0, k=10, temperature=1.0):
+def generate(language_model, emotion_classifier, emotion, seq_len, vocab_size, piece, roll_steps=30, temperature=1.0, k=10, c=1.0):
     tree = MCTS(language_model,
-                vocab_size,
-                temperature,
-                k,
-                seq_len,
-                c_uct,
                 emotion_classifier,
-                emotion)
+                emotion,
+                vocab_size,
+                device,
+                seq_len,
+                temperature, k, c)
 
     # Init mucts
     try:
