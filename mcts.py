@@ -58,7 +58,7 @@ class MCTS:
         N = N**(1./self.temperature)
         N = N/np.sum(N)
 
-        self.diff_distros(self.Ps[s].numpy(), N)
+        self.diff_distros(self.Ps[s].cpu().numpy(), N)
 
         random_idx = np.random.choice(len(N), p=N)
         # random_idx = torch.multinomial(self.Ps[s], num_samples=1)
