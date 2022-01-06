@@ -58,7 +58,7 @@ class MCTS:
         N = N**(1./self.temperature)
         N = N/np.sum(N)
 
-        self.diff_distros(self.Ps[s].cpu().numpy(), N)
+        #self.diff_distros(self.Ps[s].cpu().numpy(), N)
 
         random_idx = np.random.choice(len(N), p=N)
         # random_idx = torch.multinomial(self.Ps[s], num_samples=1)
@@ -95,7 +95,7 @@ class MCTS:
         # Recursevily call step until a leaf node is found
         next_state = self._get_next_state(state, token)
 
-        print("\t selected:", token)
+        #print("\t selected:", token)
         value = self.step(next_state, prob + torch.log(self.Ps[s][token]))
 
         if (s, token) in self.Qsa:
@@ -111,7 +111,7 @@ class MCTS:
 
     def _expand(self, state):
         with torch.no_grad():
-            print("\t expand:", state)
+            #print("\t expand:", state)
 
             # Compute logits
             # y_i, _ = self.language_model(sequence[:,i:i+1], i=i, memory=memory)
