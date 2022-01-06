@@ -96,7 +96,7 @@ class MCTS:
         next_state = self._get_next_state(state, token)
 
         print("\t selected:", token)
-        value = self.step(next_state, prob + np.log(self.Ps[s][token]))
+        value = self.step(next_state, prob + torch.log(self.Ps[s][token]))
 
         if (s, token) in self.Qsa:
             self.Qsa[(s, token)] = (self.Nsa[(s, token)] * self.Qsa[(s, token)] + value) / (self.Nsa[(s, token)] + 1)
