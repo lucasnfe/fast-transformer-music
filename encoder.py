@@ -288,8 +288,11 @@ def encode_midi(file_path):
 
     return [start.to_int()] + [e.to_int() for e in events] + [end.to_int()]
 
+def decode_events(idx_array):
+    return [Event.from_int(idx) for idx in idx_array]
+
 def decode_midi(idx_array, file_path=None):
-    event_sequence = [Event.from_int(idx) for idx in idx_array]
+    event_sequence = decode_events(idx_array)
 
     snote_seq = _event_seq2snote_seq(event_sequence)
     note_seq = _merge_note(snote_seq)

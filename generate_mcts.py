@@ -1,24 +1,26 @@
 import os
+import copy
 import json
 import torch
 import argparse
+import numpy as np
 
-from mcts import MCTS, PieceState
-from encoder import decode_midi
+from mcts import MCTS#, PieceState
+from encoder import decode_midi, decode_events
 
-from models.music_generator_recurrent import RecurrentMusicGenerator
+from models.music_generator import MusicGenerator
 from models.music_emotion_classifier import MusicEmotionClassifier
 
 START_TOKEN = 388
 
 def load_language_model(model, vocab_size, d_query, n_layers, n_heads, seq_len):
-    language_model = RecurrentMusicGenerator(n_tokens=vocab_size,
-                                              d_query=d_query,
-                                              d_model=d_query * n_heads,
-                                              seq_len=seq_len,
-                                       attention_type="linear",
-                                             n_layers=n_layers,
-                                              n_heads=n_heads).to(device)
+    language_model = MusicGenerator(n_tokens=vocab_size,
+                                     d_query=d_query,
+                                     d_model=d_query * n_heads,
+                                     seq_len=seq_len,
+                              attention_type="causal-linear",
+                                    n_layers=n_layers,
+                                     n_heads=n_heads).to(device)
 
     # Load model
     language_model.load_state_dict(torch.load(model, map_location=device)["model_state"])
@@ -45,35 +47,36 @@ def load_emotion_classifier(model, vocab_size, d_query, n_layers, n_heads, seq_l
 
     return emotion_classifier
 
-def generate(language_model, emotion_classifier, emotion, seq_len, prime, roll_steps=100, c_uct=1.0, k=10, temperature=1.0):
+def generate(language_model, emotion_classifier, emotion, seq_len, vocab_size, piece, roll_steps=30, c_uct=1.0, k=10, temperature=1.0):
     tree = MCTS(language_model,
-                 temperature,
-                 k,
-                 seq_len,
-                 c_uct,
-                 emotion_classifier,
-                 emotion)
+                vocab_size,
+                temperature,
+                k,
+                seq_len,
+                c_uct,
+                emotion_classifier,
+                emotion)
 
     # Init mucts
-    piece = PieceState(prime, i=0, memory=None)
-
     try:
         while True:
-            print("Current piece:", piece, piece.i)
+            print("Current piece:", piece)
 
             for step in range(roll_steps):
                 print("Rollout: %d" % step)
-                tree.step(piece)
+                tree.step(piece, prob=1e-8)
 
-            piece = tree.choose(piece)
+            # Choose next state
+            token = tree.choose(piece)
+            piece = tree._get_next_state(piece, token)
 
-            if piece.terminal:
+            if tree._is_terminal(piece):
                 break
 
     except KeyboardInterrupt:
         print("Exiting due to keyboard interrupt.")
 
-    return [int(token) for token in piece.sequence]
+    return [int(token) for token in piece[-1]]
 
 if __name__ == "__main__":
     # Parse arguments
@@ -98,8 +101,8 @@ if __name__ == "__main__":
 
     # Define prime sequence
     prime = [START_TOKEN]
-    prime = torch.tensor(prime, dtype=torch.int64).to(device)
+    prime = torch.tensor(prime).unsqueeze(dim=0).to(device)
 
-    piece = generate(language_model, emotion_classifier, opt.emotion, opt.seq_len, prime)
+    piece = generate(language_model, emotion_classifier, opt.emotion, opt.seq_len, opt.vocab_size, prime, k=opt.k)
     decode_midi(piece, "results/generated_piece_mcts.mid")
     print(piece)

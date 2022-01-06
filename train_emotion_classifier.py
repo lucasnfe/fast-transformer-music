@@ -126,7 +126,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='train_emotion_classifier.py')
     parser.add_argument('--train', type=str, required=True, help="Path to train data directory.")
     parser.add_argument('--test', type=str, required=True, help="Path to train data directory.")
-    parser.add_argument('--pre_trained', type=str, required=True, help="Path to load model from.")
+    parser.add_argument('--pre_trained', type=str, required=False, help="Path to load model from.")
     parser.add_argument('--vocab_size', type=int, required=True, help="Vocabulary size.")
     parser.add_argument('--epochs', type=int, default=100, help="Epochs to train.")
     parser.add_argument('--batch_size', type=int, default=32, help="Batch size.")

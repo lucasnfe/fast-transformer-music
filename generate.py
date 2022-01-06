@@ -8,13 +8,12 @@
 import torch
 import math
 import argparse
+import encoder
 
-from encoder import decode_midi
 from torch.distributions.categorical import Categorical
 from models.music_generator_recurrent import RecurrentMusicGenerator
 
 START_TOKEN = 388
-END_TOKEN = 389
 
 def filter_top_p(y_hat, p, filter_value=-float("Inf")):
     sorted_logits, sorted_indices = torch.sort(y_hat, descending=True)
@@ -40,14 +39,26 @@ def filter_top_k(y_hat, k, filter_value=-float("Inf")):
 
     return y_hat
 
-def filter_repetition(previous_tokens, scores, penalty=1.0001):
-    score = torch.gather(scores, 1, previous_tokens)
+def filter_note_off(y_hat, notes_status, filter_value=-float("Inf")):
+    for i in range(len(notes_status)):
+        if notes_status[i] == 0:
+            y_hat[:,encoder.START_IDX['note_off'] + i] = filter_value
 
-    # if score < 0 then repetition penalty has to be multiplied to reduce the previous token probability
-    score = torch.where(score < 0, score * penalty, score / penalty)
+    return y_hat
 
-    scores.scatter_(1, previous_tokens, score)
-    return scores
+def filter_velocity(y_hat, status_velocity, filter_value=-float("Inf")):
+    if status_velocity == 1:
+        i = encoder.RANGE_VEL
+        y_hat[:,encoder.START_IDX['velocity']:encoder.START_IDX['velocity']+i] = filter_value
+
+    return y_hat
+
+def filter_time_shift(y_hat, status_time_shift, filter_value=-float("Inf")):
+    if status_time_shift == 1:
+        i = encoder.RANGE_TIME_SHIFT
+        y_hat[:,encoder.START_IDX['time_shift']:encoder.START_IDX['time_shift']+i] = filter_value
+
+    return y_hat
 
 def sample_tokens(y_hat, num_samples=1):
     # Sample from filtered categorical distribution
@@ -57,20 +68,25 @@ def sample_tokens(y_hat, num_samples=1):
 
 def generate(model, prime, seq_len, k=0, p=0, temperature=1.0):
     memory = None
-    y_hat = []
-    x_hat = []
+    piece = []
 
     # Process prime sequence
     prime_len = prime.shape[1]
     for i in range(prime_len):
-        x_hat.append(prime[:,i:i+1])
-        y_i, memory = model(x_hat[-1], i=i, memory=memory)
-        y_hat.append(y_i)
+        x_i = prime[:,i:i+1]
+        y_i, memory = model(x_i, i=i, memory=memory)
+        piece.append(int(x_i))
 
     # Generate new tokens
     for i in range(prime_len, seq_len):
+        status_notes, status_velocity, status_time_shift = get_piece_status(piece)
+
+        # y_i = filter_note_off(y_i, status_notes)
+        # y_i = filter_velocity(y_i, status_velocity)
+        # y_i = filter_time_shift(y_i, status_time_shift)
+
         # Apply temperature filter
-        y_i = y_hat[-1]/temperature
+        y_i = y_i/temperature
 
         # Apply top_k and top_p filters
         if k > 0:
@@ -79,17 +95,39 @@ def generate(model, prime, seq_len, k=0, p=0, temperature=1.0):
             y_i = filter_top_p(y_i, p)
 
         # sample new token
-        x_hat.append(sample_tokens(y_i))
+        x_i = sample_tokens(y_i)
 
         # Stop if end-of-piece token
-        if int(x_hat[-1]) == END_TOKEN:
+        event = encoder.Event.from_int(int(x_i))
+        if event.type == 'special' and event.value == 1:
             print("End of piece reached...", "stopping...")
             break
 
-        y_i, memory = model(x_hat[-1], i=i, memory=memory)
-        y_hat.append(y_i)
+        y_i, memory = model(x_i, i=i, memory=memory)
+        piece.append(int(x_i))
 
-    return [int(token) for token in x_hat]
+    return piece
+
+def get_piece_status(piece):
+    status_notes = [0 for i in range(128)]
+
+    for token in piece:
+        status_velocity = 0
+        status_time_shift = 0
+
+        event = encoder.Event.from_int(token)
+
+        if event.type == 'note_on':
+            status_notes[event.value] = 1
+        elif event.type == 'note_off':
+            status_notes[event.value] = 0
+        elif event.type == 'velocity':
+            status_velocity = 1
+        elif event.type == 'time_shift':
+            if event.value != encoder.RANGE_TIME_SHIFT - 1:
+                status_time_shift = 1
+
+    return status_notes, status_velocity, status_time_shift
 
 def generate_beam_search(model, prime, n, beam_size, k=0, p=0, temperature=1.0):
     # Process prime sequence
@@ -180,9 +218,6 @@ def generate_beam_search(model, prime, n, beam_size, k=0, p=0, temperature=1.0):
 
     return [int(token) for token in best_candidate]
 
-def generate_mcts():
-    pass
-
 if __name__ == '__main__':
     # Parse arguments
     parser = argparse.ArgumentParser(description='generate.py')
@@ -214,11 +249,13 @@ if __name__ == '__main__':
     model.eval()
 
     # Define prime sequence
-    prime = [START_TOKEN]
-    prime = torch.tensor(prime).unsqueeze(dim=0)
+    with torch.no_grad():
+        prime = [START_TOKEN]
+        prime = torch.tensor(prime).unsqueeze(dim=0).to(device)
 
-    # Generate continuation
-    # piece = generate_beam_search(model, prime, n=1000, beam_size=8, k=opt.k, p=opt.p, temperature=opt.t)
-    piece = generate(model, prime, opt.seq_len, opt.k, opt.p, temperature=opt.t)
-    decode_midi(piece, "results/generated_piece.mid")
+        # Generate continuation
+        # piece = generate_beam_search(model, prime, n=1000, beam_size=8, k=opt.k, p=opt.p, temperature=opt.t)
+        piece = generate(model, prime, opt.seq_len, opt.k, opt.p, temperature=opt.t)
+
+    encoder.decode_midi(piece, "results/generated_piece.mid")
     print(piece)
