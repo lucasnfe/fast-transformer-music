@@ -90,10 +90,14 @@ if __name__ == "__main__":
     parser.add_argument('--d_query', type=int, default=32, help="Dimension of the query matrix.")
     parser.add_argument('--n_heads', type=int, default=8, help="Number of attention heads.")
     parser.add_argument('--save_to', type=str, required=True, help="Set a file to save the models to.")
+    parser.add_argument('--device', type=str, required=False, help="Force device.")
     opt = parser.parse_args()
 
     # Set up torch device
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    if opt.device:
+        device = torch.device(opt.device)
+    else:
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     # Load models
     language_model = load_language_model(opt.lm, opt.vocab_size, opt.d_query, opt.n_layers, opt.n_heads, opt.seq_len)

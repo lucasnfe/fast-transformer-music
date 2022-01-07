@@ -32,15 +32,22 @@ if [ -z "$2" ]; then
     exit 1
 fi
 
+if [ -z "$3" ]; then
+    echo "Provide device's name."
+    exit 1
+fi
+
 FIRST_PIECE_IDX=$1
 LAST_PIECE_IDX=$2
+DEVICE=$3
 
 for emotion in ${EMOTIONS[@]}; do
     echo "-> Emotion $emotion"
     for i in `seq $FIRST_PIECE_IDX $LAST_PIECE_IDX`; do
         echo "--- Generating piece $i"
         $PYTHON $MCTS --lm $LM --clf $CLF --emotion $emotion --vocab_size $VOCAB_SIZE \
-                        --seq_len $SEQ_LEN --n_layers $N_LAYERS --k $K --save_to ${SAVE_TO}_${emotion}_${i}.mid
+                        --seq_len $SEQ_LEN --n_layers $N_LAYERS --k $K \
+                        --save_to ${SAVE_TO}_${emotion}_${i}.mid --device $DEVICE
 
     done
 done
