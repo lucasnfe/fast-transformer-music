@@ -26,6 +26,8 @@ class MCTS:
         self.vocab_size = vocab_size
         self.temperature = temperature
 
+        self.children = np.array([i for i in range(self.vocab_size)])
+
     def diff_distros(self, old, new):
         tokens = [i for i in range(self.vocab_size)]
 
@@ -54,11 +56,11 @@ class MCTS:
         "Choose the best successor of node. (Choose a move in the game)"
         s = self._get_string_representation(state)
 
-        N = np.array([self.Nsa[(s, token)] if (s, token) in self.Nsa else 0 for token in range(self.vocab_size)])
+        N = np.array([self.Nsa[(s, token)] if (s, token) in self.Nsa else 0 for token in self.children])
         N = N**(1./self.temperature)
         N = N/np.sum(N)
 
-        #self.diff_distros(self.Ps[s].cpu().numpy(), N)
+        self.diff_distros(self.Ps[s].cpu().numpy(), N)
 
         random_idx = np.random.choice(len(N), p=N)
         # random_idx = torch.multinomial(self.Ps[s], num_samples=1)
@@ -112,15 +114,8 @@ class MCTS:
     def _expand(self, state):
         with torch.no_grad():
             #print("\t expand:", state)
-
-            # Compute logits
-            # y_i, _ = self.language_model(sequence[:,i:i+1], i=i, memory=memory)
             y_i = self.language_model(state)[:,-1,:]
-
-            # Filter top_k tokens
             y_i = filter_top_k(y_i, self.k)
-
-            # Compute probability of the top_k token
             y_i = torch.softmax(y_i, dim=1)
 
         return y_i.squeeze()
@@ -136,22 +131,20 @@ class MCTS:
         print("\t reward:", emotion_score)
         return emotion_score
 
-    def _select(self, s, eps=1e-8):
-        "Upper confidence bound for trees"
-        cur_best = -float('inf')
-        best_token = -1
+    def _select(self, state, eps=1e-8):
+        "Select a child of node, balancing exploration & exploitation"
+        def puct(token, eps=1e-8):
+            if self.Ps[state][token] == 0:
+                return float("-inf")
 
-        for token in range(self.vocab_size):
-            # Check if if is a valid move
-            if self.Ps[s][token] > 0:
-                if (s, token) in self.Qsa:
-                    u = self.Qsa[(s, token)] + self.c * self.Ps[s][token] * np.sqrt(self.Ns[s])/(
-                            1 + self.Nsa[(s, token)])
-                else:
-                    u = self.c * self.Ps[s][token] * np.sqrt(self.Ns[s] + eps)
+            if (state, token) not in self.Qsa:
+                return self.c * self.Ps[state][token] * np.sqrt(self.Ns[state] + eps)
 
-                if u > cur_best:
-                    cur_best = u
-                    best_token = token
+            "Upper confidence bound for trees"
+            return self.Qsa[(state, token)] + self.c * self.Ps[state][token] * np.sqrt(self.Ns[state])/(
+                    1 + self.Nsa[(state, token)])
 
-        return best_token
+        np_puct = np.vectorize(puct)
+        np_puct_result = np_puct(self.children)
+
+        return np.argmax(np_puct_result)

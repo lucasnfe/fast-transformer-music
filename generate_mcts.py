@@ -102,6 +102,6 @@ if __name__ == "__main__":
     prime = [START_TOKEN]
     prime = torch.tensor(prime).unsqueeze(dim=0).to(device)
 
-    piece = generate(language_model, emotion_classifier, opt.emotion, opt.seq_len, opt.vocab_size, prime, k=opt.k)
+    piece = generate(language_model, emotion_classifier, opt.emotion, 512, opt.vocab_size, prime, k=opt.k)
     decode_midi(piece, "results/generated_piece_mcts.mid")
     print(piece)
