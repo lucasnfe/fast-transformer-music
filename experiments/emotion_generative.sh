@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # EXAMPLE USAGE:
-# CUDA_VISIBLE_DEVICES=0 ./emotion_generative.sh 0 4 gpu
-# CUDA_VISIBLE_DEVICES=1 ./emotion_generative.sh 5 9 gpu
+# CUDA_VISIBLE_DEVICES=0 ./emotion_generative.sh 0 4 cuda
+# CUDA_VISIBLE_DEVICES=1 ./emotion_generative.sh 5 9 cuda
 # CUDA_VISIBLE_DEVICES=-1 ./emotion_generative.sh 10 14 cpu
 # CUDA_VISIBLE_DEVICES=-1 ./emotion_generative.sh 15 19 cpu
 # CUDA_VISIBLE_DEVICES=-1 ./emotion_generative.sh 20 24 cpu
