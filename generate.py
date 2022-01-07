@@ -230,6 +230,7 @@ if __name__ == '__main__':
     parser.add_argument('--n_layers', type=int, default=4, help="Number of transformer layers.")
     parser.add_argument('--d_query', type=int, default=32, help="Dimension of the query matrix.")
     parser.add_argument('--n_heads', type=int, default=8, help="Number of attention heads.")
+    parser.add_argument('--save_to', type=str, required=True, help="Set a file to save the models to.")
     opt = parser.parse_args()
 
     # Set up torch device
@@ -257,5 +258,5 @@ if __name__ == '__main__':
         # piece = generate_beam_search(model, prime, n=1000, beam_size=8, k=opt.k, p=opt.p, temperature=opt.t)
         piece = generate(model, prime, opt.seq_len, opt.k, opt.p, temperature=opt.t)
 
-    encoder.decode_midi(piece, "results/generated_piece.mid")
+    encoder.decode_midi(piece, opt.save_to)
     print(piece)

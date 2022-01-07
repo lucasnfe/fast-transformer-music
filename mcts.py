@@ -57,7 +57,7 @@ class MCTS:
         N = self.Nsa[s]**(1./self.temperature)
         N = N/torch.sum(N)
 
-        self.diff_distros(self.Ps[s].cpu().numpy(), N.cpu().numpy())
+        # self.diff_distros(self.Ps[s].cpu().numpy(), N.cpu().numpy())
 
         random_idx = torch.multinomial(N, num_samples=1).squeeze()
         return random_idx
@@ -109,7 +109,8 @@ class MCTS:
         with torch.no_grad():
             #print("\t expand:", state)
             y_i = self.language_model(state)[:,-1,:]
-            y_i = filter_top_k(y_i, self.k)
+            if self.k > 0:
+                y_i = filter_top_k(y_i, self.k)
             y_i = torch.softmax(y_i, dim=1)
 
         return y_i.squeeze()
