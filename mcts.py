@@ -26,8 +26,6 @@ class MCTS:
         self.vocab_size = vocab_size
         self.temperature = temperature
 
-        self.children = np.array([i for i in range(self.vocab_size)])
-
     def diff_distros(self, old, new):
         tokens = [i for i in range(self.vocab_size)]
 
@@ -56,18 +54,16 @@ class MCTS:
         "Choose the best successor of node. (Choose a move in the game)"
         s = self._get_string_representation(state)
 
-        N = np.array([self.Nsa[(s, token)] if (s, token) in self.Nsa else 0 for token in self.children])
-        N = N**(1./self.temperature)
-        N = N/np.sum(N)
+        N = self.Nsa[s]**(1./self.temperature)
+        N = N/torch.sum(N)
 
-        self.diff_distros(self.Ps[s].cpu().numpy(), N)
+        self.diff_distros(self.Ps[s].cpu().numpy(), N.cpu().numpy())
 
-        random_idx = np.random.choice(len(N), p=N)
-        # random_idx = torch.multinomial(self.Ps[s], num_samples=1)
+        random_idx = torch.multinomial(N, num_samples=1).squeeze()
         return random_idx
 
     def _get_next_state(self, state, token):
-        return torch.cat((state, torch.tensor([[token]]).to(self.device)), dim=1)
+        return torch.cat((state, token.unsqueeze(0).unsqueeze(0)), dim=1)
 
     def _is_terminal(self, state):
         return state.shape[-1] >= self.seq_len or int(state[-1,-1]) == END_TOKEN
@@ -88,6 +84,9 @@ class MCTS:
             self.Ps[s] = self._expand(state)
             self.Ns[s] = 0
 
+            self.Qsa[s] = torch.zeros(self.vocab_size).to(self.device)
+            self.Nsa[s] = torch.zeros(self.vocab_size).to(self.device)
+
             value = self._reward(state, prob)
             return value
 
@@ -100,13 +99,8 @@ class MCTS:
         #print("\t selected:", token)
         value = self.step(next_state, prob + torch.log(self.Ps[s][token]))
 
-        if (s, token) in self.Qsa:
-            self.Qsa[(s, token)] = (self.Nsa[(s, token)] * self.Qsa[(s, token)] + value) / (self.Nsa[(s, token)] + 1)
-            self.Nsa[(s, token)] += 1
-        else:
-            self.Qsa[(s, token)] = value
-            self.Nsa[(s, token)] = 1
-
+        self.Qsa[s][token] = (self.Nsa[s][token] * self.Qsa[s][token] + value) / (self.Nsa[s][token] + 1)
+        self.Nsa[s][token] += 1
         self.Ns[s] += 1
 
         return value
@@ -132,19 +126,7 @@ class MCTS:
         return emotion_score
 
     def _select(self, state, eps=1e-8):
-        "Select a child of node, balancing exploration & exploitation"
-        def puct(token, eps=1e-8):
-            if self.Ps[state][token] == 0:
-                return float("-inf")
+        puct = self.Qsa[state] + self.c * self.Ps[state] * np.sqrt(self.Ns[state] + eps)/(
+                    1 + self.Nsa[state])
 
-            if (state, token) not in self.Qsa:
-                return self.c * self.Ps[state][token] * np.sqrt(self.Ns[state] + eps)
-
-            "Upper confidence bound for trees"
-            return self.Qsa[(state, token)] + self.c * self.Ps[state][token] * np.sqrt(self.Ns[state])/(
-                    1 + self.Nsa[(state, token)])
-
-        np_puct = np.vectorize(puct)
-        np_puct_result = np_puct(self.children)
-
-        return np.argmax(np_puct_result)
+        return torch.argmax(puct)
