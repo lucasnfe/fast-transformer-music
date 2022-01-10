@@ -47,7 +47,7 @@ def load_emotion_classifier(model, vocab_size, d_query, n_layers, n_heads, seq_l
 
     return emotion_classifier
 
-def generate(language_model, emotion_classifier, emotion, seq_len, vocab_size, piece, roll_steps=30, temperature=1.0, k=10, c=1.0):
+def generate(language_model, emotion_classifier, emotion, seq_len, vocab_size, piece, roll_steps=30, temperature=1.0, k=0, c=3.0):
     tree = MCTS(language_model,
                 emotion_classifier,
                 emotion,
@@ -84,6 +84,7 @@ if __name__ == "__main__":
     parser.add_argument('--clf', type=str, required=True, help="Path to load emotion classifier from.")
     parser.add_argument('--emotion', type=int, required=True, help="Piece emotion.")
     parser.add_argument('--k', type=int, default=0, help="Number k of elements to consider while sampling.")
+    parser.add_argument('--c', type=float, default=1.0, help="Constant c for puct.")
     parser.add_argument('--vocab_size', type=int, required=True, help="Vocabulary size.")
     parser.add_argument('--seq_len', type=int, required=True, help="Max sequence to process.")
     parser.add_argument('--n_layers', type=int, default=4, help="Number of transformer layers.")
@@ -107,6 +108,6 @@ if __name__ == "__main__":
     prime = [START_TOKEN]
     prime = torch.tensor(prime).unsqueeze(dim=0).to(device)
 
-    piece = generate(language_model, emotion_classifier, opt.emotion, 512, opt.vocab_size, prime, k=opt.k)
+    piece = generate(language_model, emotion_classifier, opt.emotion, 512, opt.vocab_size, prime, k=opt.k, c=opt.c)
     decode_midi(piece, opt.save_to)
     print(piece)
