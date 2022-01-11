@@ -58,7 +58,7 @@ def pad_collate(batch):
 
         padding_len = max_len - x.shape[-1]
         if padding_len > 0:
-            padding = torch.full((padding_len,), PAD_TOKEN)
+            padding = torch.full((padding_len,), PAD_TOKEN, dtype=torch.int32)
             x = torch.cat((x, padding), dim=0)
 
         padded_examples.append(x)
