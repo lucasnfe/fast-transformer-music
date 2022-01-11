@@ -139,7 +139,7 @@ if __name__ == '__main__':
     parser.add_argument('--lr', type=float, default=0.0001, help="Learning rate.")
     parser.add_argument('--seq_len', type=int, required=True, help="Max sequence to process.")
     parser.add_argument('--n_layers', type=int, default=4, help="Number of transformer layers.")
-    # parser.add_argument('--n_finetune', type=int, default=4, help="Number of transformer layers to finetune.")
+    parser.add_argument('--n_finetune', type=int, default=4, help="Number of transformer layers to finetune.")
     parser.add_argument('--d_query', type=int, default=32, help="Dimension of the query matrix.")
     parser.add_argument('--n_heads', type=int, default=8, help="Number of attention heads.")
     parser.add_argument('--prefix', type=int, default=0, help="Traing with different prefix sizes.")
@@ -177,6 +177,12 @@ if __name__ == '__main__':
     if opt.pre_trained:
         print(f'Fine-tuning model {opt.pre_trained}')
         model.load_state_dict(torch.load(opt.pre_trained, map_location=device)["model_state"])
+
+        # Lock paramters and reset last l
+        for i, layer in enumerate(model.transformer.layers):
+            if i < opt.n_finetune:
+                for param in layer.parameters():
+                    param.requires_grad = False
 
     # Add classification head
     model = torch.nn.Sequential(model,
