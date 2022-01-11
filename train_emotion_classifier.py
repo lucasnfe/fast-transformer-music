@@ -1,5 +1,4 @@
 import torch
-import torchtext
 import time
 import argparse
 import numpy as np
