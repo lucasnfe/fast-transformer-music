@@ -154,8 +154,15 @@ if __name__ == '__main__':
     vgmidi_test = VGMidiLabelled(opt.test, seq_len=opt.seq_len, prefix=opt.prefix)
 
     # Batchfy flat tensor data
-    train_loader = torch.utils.data.DataLoader(vgmidi_train, batch_size=opt.batch_size, sampler=VGMidiSampler(vgmidi_train, shuffle=True), collate_fn=pad_collate)
-    test_loader = torch.utils.data.DataLoader(vgmidi_test, batch_size=opt.batch_size, sampler=VGMidiSampler(vgmidi_test, shuffle=False), collate_fn=pad_collate)
+    train_loader = torch.utils.data.DataLoader(vgmidi_train,
+                             batch_size=opt.batch_size,
+                                sampler=VGMidiSampler(vgmidi_train, bucket_size=opt.prefix, max_len=opt.seq_len, shuffle=True),
+                             collate_fn=pad_collate)
+
+    test_loader = torch.utils.data.DataLoader(vgmidi_test,
+                                            batch_size=opt.batch_size,
+                                               sampler=VGMidiSampler(vgmidi_test, bucket_size=opt.prefix, max_len=opt.seq_len, shuffle=False),
+                                            collate_fn=pad_collate)
 
     # Build linear transformer
     model = MusicEmotionClassifier(n_tokens=opt.vocab_size,
