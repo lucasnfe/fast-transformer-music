@@ -88,6 +88,9 @@ class VGMidiSampler(torch.utils.data.Sampler):
 
         return iter(idxs)
 
+    def __len__(self):
+        return len(self.data_source)
+
 class VGMidiUnlabelled(torch.utils.data.Dataset):
     def __init__(self, pieces_path, seq_len):
         self.seq_len = seq_len
