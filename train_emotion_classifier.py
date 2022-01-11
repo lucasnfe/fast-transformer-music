@@ -156,12 +156,12 @@ if __name__ == '__main__':
     # Batchfy flat tensor data
     train_loader = torch.utils.data.DataLoader(vgmidi_train,
                              batch_size=opt.batch_size,
-                                sampler=VGMidiSampler(vgmidi_train, bucket_size=opt.prefix, max_len=opt.seq_len, shuffle=True),
+                                shuffle=True,
                              collate_fn=pad_collate)
 
     test_loader = torch.utils.data.DataLoader(vgmidi_test,
                                             batch_size=opt.batch_size,
-                                               sampler=VGMidiSampler(vgmidi_test, bucket_size=opt.prefix, max_len=opt.seq_len, shuffle=False),
+                                               shuffle=True,
                                             collate_fn=pad_collate)
 
     # Build linear transformer
@@ -180,7 +180,7 @@ if __name__ == '__main__':
 
         # Lock paramters and reset last l
         for i, layer in enumerate(model.transformer.layers):
-            if i < opt.n_finetune:
+            if i > opt.n_finetune:
                 for param in layer.parameters():
                     param.requires_grad = False
 
