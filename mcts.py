@@ -57,8 +57,7 @@ class MCTS:
         N = self.Nsa[s]**(1./self.temperature)
         N = N/torch.sum(N)
 
-        print(self.Nsa[s].cpu().numpy())
-
+        self.diff_distros(self.Qsa[s].cpu().numpy(), self.Qsa[s].cpu().numpy())
         self.diff_distros(self.Ps[s].cpu().numpy(), N.cpu().numpy())
 
         random_idx = torch.multinomial(N, num_samples=1).squeeze()
@@ -119,22 +118,23 @@ class MCTS:
 
     def _reward(self, state, prob):
         "Returns the reward for a random simulation (to completion) of `node`"
-        with torch.no_grad():
-            continuation = torch.clone(state)
-            while continuation.shape[-1] % 64 != 0:
-                # Sample new token
-                y_i = self.language_model(continuation)[:,-1,:]
-                if self.k > 0:
-                    y_i = filter_top_k(y_i, self.k)
-                y_i = torch.softmax(y_i, dim=1)
-
-                # Concatenate to current state
-                random_idx = torch.multinomial(y_i, 1)
-                continuation = torch.cat((continuation, random_idx), dim=1)
+        # with torch.no_grad():
+        #     continuation = torch.clone(state)
+        #     while continuation.shape[-1] % 256 != 0:
+        #         # Sample new token
+        #         y_i = self.language_model(continuation)[:,-1,:]
+        #         if self.k > 0:
+        #             y_i = filter_top_k(y_i, self.k)
+        #         y_i = torch.softmax(y_i, dim=1)
+        #
+        #         # Concatenate to current state
+        #         random_idx = torch.multinomial(y_i, 1)
+        #         continuation = torch.cat((continuation, random_idx), dim=1)
+        # print("continuation", continuation)
 
         with torch.no_grad():
             # Emotion score
-            emotion_score = torch.softmax(self.emotion_classifier(continuation), dim=1)
+            emotion_score = torch.softmax(self.emotion_classifier(state), dim=1)
             emotion_score = float(emotion_score.squeeze()[self.emotion])
 
         # reward = language_score
