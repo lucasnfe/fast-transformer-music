@@ -149,17 +149,11 @@ class MCTS:
 
         with torch.no_grad():
             # Emotion score
-            y_hat = torch.softmax(self.emotion_classifier(piece), dim=1)
-            _, y_hat = torch.max(y_hat.view(-1, 4).data, dim=1)
+            reward = torch.softmax(self.emotion_classifier(piece), dim=1)
+            reward = 2.0  * reward.squeeze()[self.emotion] - 1.0
 
-        print("y_hat", y_hat, y_hat == self.emotion)
-
-        if y_hat == self.emotion:
-            print("\t reward:", 1)
-            return 1
-
-        print("\t reward:", -1)
-        return -1
+        print("reward", reward)
+        return reward
 
     def _select(self, state, eps=1e-8):
         puct = self.Qsa[state] + self.c * self.Ps[state] * np.sqrt(self.Ns[state] + eps)/(
