@@ -5,10 +5,11 @@ import torch
 import argparse
 import numpy as np
 
-from mcts import MCTS#, PieceState
+from mcts import MCTS
 from encoder import decode_midi, decode_events
 
 from models.music_generator import MusicGenerator
+from models.music_generator_recurrent import RecurrentMusicGenerator
 from models.music_emotion_classifier import MusicEmotionClassifier
 
 START_TOKEN = 388
@@ -27,6 +28,21 @@ def load_language_model(model, vocab_size, d_query, n_layers, n_heads, seq_len):
     language_model.eval()
 
     return language_model
+
+def load_recurent_language_model(model, vocab_size, d_query, n_layers, n_heads, seq_len):
+    recurent_language_model = RecurrentMusicGenerator(n_tokens=vocab_size,
+                                     d_query=d_query,
+                                     d_model=d_query * n_heads,
+                                     seq_len=seq_len,
+                              attention_type="linear",
+                                    n_layers=n_layers,
+                                     n_heads=n_heads).to(device)
+
+    # Load model
+    recurent_language_model.load_state_dict(torch.load(model, map_location=device)["model_state"])
+    recurent_language_model.eval()
+
+    return recurent_language_model
 
 def load_emotion_classifier(model, vocab_size, d_query, n_layers, n_heads, seq_len):
     # Load Emotion Classifier
@@ -47,8 +63,9 @@ def load_emotion_classifier(model, vocab_size, d_query, n_layers, n_heads, seq_l
 
     return emotion_classifier
 
-def generate(language_model, emotion_classifier, emotion, seq_len, vocab_size, piece, roll_steps=30, temperature=1.0, k=0, c=3.0):
+def generate(language_model, recurent_language_model, emotion_classifier, emotion, seq_len, vocab_size, piece, roll_steps=30, temperature=1.0, k=0, c=3.0):
     tree = MCTS(language_model,
+                recurent_language_model,
                 emotion_classifier,
                 emotion,
                 vocab_size,
@@ -100,14 +117,17 @@ if __name__ == "__main__":
     else:
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    # Load models
+    # Load language models
     language_model = load_language_model(opt.lm, opt.vocab_size, opt.d_query, opt.n_layers, opt.n_heads, opt.seq_len)
+    recurent_language_model = load_recurent_language_model(opt.lm, opt.vocab_size, opt.d_query, opt.n_layers, opt.n_heads, opt.seq_len)
+
+    # Load emotion classifier
     emotion_classifier = load_emotion_classifier(opt.clf, opt.vocab_size, opt.d_query, opt.n_layers, opt.n_heads, opt.seq_len)
 
     # Define prime sequence
     prime = [START_TOKEN]
     prime = torch.tensor(prime).unsqueeze(dim=0).to(device)
 
-    piece = generate(language_model, emotion_classifier, opt.emotion, 512, opt.vocab_size, prime, k=opt.k, c=opt.c)
+    piece = generate(language_model, recurent_language_model, emotion_classifier, opt.emotion, 512, opt.vocab_size, prime, k=opt.k, c=opt.c)
     decode_midi(piece, opt.save_to)
     print(piece)

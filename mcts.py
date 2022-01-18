@@ -2,13 +2,13 @@ import torch
 import numpy as np
 import plotext as plt
 
-from generate import filter_top_k
+from generate import filter_top_k, sample_tokens
 
 END_TOKEN = 389
 
 class MCTS:
     "Monte Carlo tree searcher. First rollout the tree then choose a move."
-    def __init__(self, language_model, emotion_classifier, emotion, vocab_size, device, seq_len=512, temperature=1.0, k=0, c=1):
+    def __init__(self, language_model, recurent_language_model, emotion_classifier, emotion, vocab_size, device, seq_len=512, temperature=1.0, k=0, c=1):
 
         self.Qsa = {} # stores Q values for s,a (as defined in the paper)
         self.Nsa = {} # stores #times edge s,a was visited
@@ -16,6 +16,7 @@ class MCTS:
         self.Ns  = {}
 
         self.language_model = language_model
+        self.recurent_language_model = recurent_language_model
         self.emotion_classifier = emotion_classifier
         self.emotion = emotion
         self.device = device
@@ -118,28 +119,47 @@ class MCTS:
 
     def _reward(self, state, prob):
         "Returns the reward for a random simulation (to completion) of `node`"
-        # with torch.no_grad():
-        #     continuation = torch.clone(state)
-        #     while continuation.shape[-1] % 256 != 0:
-        #         # Sample new token
-        #         y_i = self.language_model(continuation)[:,-1,:]
-        #         if self.k > 0:
-        #             y_i = filter_top_k(y_i, self.k)
-        #         y_i = torch.softmax(y_i, dim=1)
-        #
-        #         # Concatenate to current state
-        #         random_idx = torch.multinomial(y_i, 1)
-        #         continuation = torch.cat((continuation, random_idx), dim=1)
-        # print("continuation", continuation)
+        memory = None
+        piece = torch.clone(state)
+
+        # Process current state
+        with torch.no_grad():
+            piece_len = piece.shape[1]
+            for i in range(piece_len):
+                x_i = piece[:,i:i+1]
+                y_i, memory = self.recurent_language_model(x_i, i=i, memory=memory)
+
+        i = piece_len
+        with torch.no_grad():
+            while piece.shape[-1] % 256 != 0:
+                # Sample new token
+                if self.k > 0:
+                    y_i = filter_top_k(y_i, self.k)
+
+                # sample new token
+                x_i = sample_tokens(y_i)
+
+                # Concatenate to current state
+                piece = torch.cat((piece, x_i), dim=1)
+
+                y_i, memory = self.recurent_language_model(x_i, i=i, memory=memory)
+                i += 1
+
+        print("continuation", piece)
 
         with torch.no_grad():
             # Emotion score
-            emotion_score = torch.softmax(self.emotion_classifier(state), dim=1)
-            emotion_score = float(emotion_score.squeeze()[self.emotion])
+            y_hat = torch.softmax(self.emotion_classifier(piece), dim=1)
+            _, y_hat = torch.max(y_hat.view(-1, 4).data, dim=1)
 
-        # reward = language_score
-        print("\t reward:", emotion_score)
-        return emotion_score
+        print("y_hat", y_hat, y_hat == self.emotion)
+
+        if y_hat == self.emotion:
+            print("\t reward:", 1)
+            return 1
+
+        print("\t reward:", -1)
+        return -1
 
     def _select(self, state, eps=1e-8):
         puct = self.Qsa[state] + self.c * self.Ps[state] * np.sqrt(self.Ns[state] + eps)/(
