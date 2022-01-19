@@ -55,16 +55,18 @@ class MCTS:
         "Choose the best successor of node. (Choose a move in the game)"
         s = self._get_string_representation(state)
 
-        N = self.Nsa[s]**(1./self.temperature)
-        N = N/torch.sum(N)
+        N = np.array([self.Nsa[(s, token)] if (s, token) in self.Nsa else 0 for token in range(self.vocab_size)])
+        print(N)
+        N = N**(1./self.temperature)
+        N = N/np.sum(N)
 
-        self.diff_distros(self.Ps[s].cpu().numpy(), N.cpu().numpy())
+        self.diff_distros(self.Ps[s].cpu().numpy(), N)
 
-        random_idx = torch.multinomial(N, num_samples=1).squeeze()
-        return random_idx
+        next_token = np.random.choice(len(N), p=N)
+        return next_token
 
     def _get_next_state(self, state, token):
-        return torch.cat((state, token.unsqueeze(0).unsqueeze(0)), dim=1)
+        return torch.cat((state, torch.tensor([[token]]).to(self.device)), dim=1)
 
     def _is_terminal(self, state):
         return state.shape[-1] >= self.seq_len or int(state[-1,-1]) == END_TOKEN
@@ -85,8 +87,8 @@ class MCTS:
             self.Ps[s] = self._expand(state)
             self.Ns[s] = 0
 
-            self.Qsa[s] = torch.zeros(self.vocab_size).to(self.device)
-            self.Nsa[s] = torch.zeros(self.vocab_size).to(self.device)
+            # self.Qsa[s] = torch.zeros(self.vocab_size).to(self.device)
+            # self.Nsa[s] = torch.zeros(self.vocab_size).to(self.device)
 
             value = self._reward(state, prob)
             return value
@@ -100,9 +102,13 @@ class MCTS:
         #print("\t selected:", token)
         value = self.step(next_state, prob + torch.log(self.Ps[s][token]))
 
-        self.Qsa[s][token] = (self.Nsa[s][token] * self.Qsa[s][token] + value) / (self.Nsa[s][token] + 1)
-        self.Nsa[s][token] += 1
-        self.Ns[s] += 1
+        if (s, token) in self.Qsa:
+            self.Qsa[(s, token)] = (self.Nsa[(s, token)] * self.Qsa[(s, token)] + value) / (self.Nsa[(s, token)] + 1)
+            self.Nsa[(s, token)] += 1
+
+        else:
+            self.Qsa[(s, token)] = value
+            self.Nsa[(s, token)] = 1
 
         return value
 
@@ -130,7 +136,7 @@ class MCTS:
 
         i = piece_len
         with torch.no_grad():
-            while piece.shape[-1] % 256 != 0:
+            while piece.shape[-1] % 128 != 0:
                 # Sample new token
                 if self.k > 0:
                     y_i = filter_top_k(y_i, self.k)
@@ -154,8 +160,20 @@ class MCTS:
         print("reward", reward)
         return reward
 
-    def _select(self, state, eps=1e-8):
-        puct = self.Qsa[state] + self.c * self.Ps[state] * np.sqrt(self.Ns[state] + eps)/(
-                    1 + self.Nsa[state])
+    def _select(self, s, eps=1e-8):
+        cur_best = -float('inf')
+        best_token = -1
 
-        return torch.argmax(puct)
+        for token in range(self.vocab_size):
+            if self.Ps[s][token] > 0:
+                if (s, token) in self.Qsa:
+                    u = self.Qsa[(s, token)] + self.c * self.Ps[s][token] * np.sqrt(self.Ns[s]) / (
+                            1 + self.Nsa[(s, token)])
+                else:
+                    u = self.c * self.Ps[s][token] * np.sqrt(self.Ns[s] + eps)  # Q = 0 ?
+
+                if u > cur_best:
+                    cur_best = u
+                    best_token = token
+
+        return best_token

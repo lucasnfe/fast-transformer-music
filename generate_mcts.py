@@ -80,7 +80,7 @@ def generate(language_model, recurent_language_model, emotion_classifier, emotio
 
             for step in range(roll_steps):
                 print("Rollout: %d" % step)
-                tree.step(piece, prob=1e-8)
+                tree.step(piece, prob=np.log(1e-8))
 
             # Choose next state
             token = tree.choose(piece)
@@ -128,6 +128,6 @@ if __name__ == "__main__":
     prime = [START_TOKEN]
     prime = torch.tensor(prime).unsqueeze(dim=0).to(device)
 
-    piece = generate(language_model, recurent_language_model, emotion_classifier, opt.emotion, 512, opt.vocab_size, prime, k=opt.k, c=opt.c)
+    piece = generate(language_model, recurent_language_model, emotion_classifier, opt.emotion, opt.seq_len, opt.vocab_size, prime, k=opt.k, c=opt.c)
     decode_midi(piece, opt.save_to)
     print(piece)
