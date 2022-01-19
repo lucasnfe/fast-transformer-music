@@ -199,21 +199,12 @@ class VGMidiLabelled(torch.utils.data.Dataset):
         groups_prefixes = []
 
         for x,y,g in zip(xs, ys, groups):
-            # Append entire piece
-            x_prefixes.append(x)
-            y_prefixes.append(y)
-            groups_prefixes.append(g)
-
-            # Append prefixes
-            prefix_size = 2
-            while prefix_size < len(x):
+            for prefix_size in range(prefix_step, len(x) + prefix_step, prefix_step):
                 prefix = list(x[:prefix_size])
 
                 x_prefixes.append(prefix)
                 y_prefixes.append(y)
                 groups_prefixes.append(g)
-
-                prefix_size *= prefix_step
 
         return x_prefixes, y_prefixes, groups_prefixes
 
