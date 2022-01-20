@@ -132,7 +132,7 @@ class MCTS:
             y_i, memory = self.recurent_language_model(x_i, i=i, memory=memory)
 
         i = piece_len
-        while (piece.shape[-1] % 128 != 0) or (not self._is_terminal(piece)):
+        while (piece.shape[-1] % 128 != 0) and (not self._is_terminal(piece)):
             # Sample new token
             if self.k > 0:
                 y_i = filter_top_k(y_i, self.k)
