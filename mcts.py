@@ -113,12 +113,11 @@ class MCTS:
         return value
 
     def _expand(self, state):
-        with torch.no_grad():
-            #print("\t expand:", state)
-            y_i = self.language_model(state)[:,-1,:]
-            if self.k > 0:
-                y_i = filter_top_k(y_i, self.k)
-            y_i = torch.softmax(y_i, dim=1)
+        #print("\t expand:", state)
+        y_i = self.language_model(state)[:,-1,:]
+        if self.k > 0:
+            y_i = filter_top_k(y_i, self.k)
+        y_i = torch.softmax(y_i, dim=1)
 
         return y_i.squeeze()
 
@@ -128,34 +127,31 @@ class MCTS:
         piece = torch.clone(state)
 
         # Process current state
-        with torch.no_grad():
-            piece_len = piece.shape[1]
-            for i in range(piece_len):
-                x_i = piece[:,i:i+1]
-                y_i, memory = self.recurent_language_model(x_i, i=i, memory=memory)
+        piece_len = piece.shape[1]
+        for i in range(piece_len):
+            x_i = piece[:,i:i+1]
+            y_i, memory = self.recurent_language_model(x_i, i=i, memory=memory)
 
         i = piece_len
-        with torch.no_grad():
-            while piece.shape[-1] % 128 != 0:
-                # Sample new token
-                if self.k > 0:
-                    y_i = filter_top_k(y_i, self.k)
+        while piece.shape[-1] % 128 != 0:
+            # Sample new token
+            if self.k > 0:
+                y_i = filter_top_k(y_i, self.k)
 
-                # sample new token
-                x_i = sample_tokens(y_i)
+            # sample new token
+            x_i = sample_tokens(y_i)
 
-                # Concatenate to current state
-                piece = torch.cat((piece, x_i), dim=1)
+            # Concatenate to current state
+            piece = torch.cat((piece, x_i), dim=1)
 
-                y_i, memory = self.recurent_language_model(x_i, i=i, memory=memory)
-                i += 1
+            y_i, memory = self.recurent_language_model(x_i, i=i, memory=memory)
+            i += 1
 
         print("continuation", piece)
 
-        with torch.no_grad():
-            # Emotion score
-            reward = torch.softmax(self.emotion_classifier(piece), dim=1)
-            reward = 2.0  * reward.squeeze()[self.emotion] - 1.0
+        # Emotion score
+        reward = torch.softmax(self.emotion_classifier(piece), dim=1)
+        reward = 2.0  * reward.squeeze()[self.emotion] - 1.0
 
         print("reward", reward)
         return reward

@@ -112,6 +112,9 @@ if __name__ == "__main__":
     parser.add_argument('--device', type=str, required=False, help="Force device.")
     opt = parser.parse_args()
 
+    # Disable autograd globally
+    torch.autograd.set_grad_enabled(False)
+
     # Set up torch device
     if opt.device:
         device = torch.device(opt.device)
