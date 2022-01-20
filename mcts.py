@@ -122,17 +122,19 @@ class MCTS:
 
     def _reward(self, state, prob):
         "Returns the reward for a random simulation (to completion) of `node`"
-        memory = None
+        # memory = None
         piece = torch.clone(state)
 
-        # Process current state
-        piece_len = piece.shape[1]
-        for i in range(piece_len):
-            x_i = piece[:,i:i+1]
-            y_i, memory = self.recurent_language_model(x_i, i=i, memory=memory)
+        # # Process current state
+        # piece_len = piece.shape[1]
+        # for i in range(piece_len):
+        #     x_i = piece[:,i:i+1]
+        #     y_i, memory = self.recurent_language_model(x_i, i=i, memory=memory)
 
-        i = piece_len
+        # i = piece_len
         while (piece.shape[-1] % 128 != 0) and (not self._is_terminal(piece)):
+            y_i = self.language_model(piece)[:,-1,:]
+
             # Sample new token
             if self.k > 0:
                 y_i = filter_top_k(y_i, self.k)
@@ -143,14 +145,14 @@ class MCTS:
             # Concatenate to current state
             piece = torch.cat((piece, x_i), dim=1)
 
-            y_i, memory = self.recurent_language_model(x_i, i=i, memory=memory)
-            i += 1
+            # y_i, memory = self.recurent_language_model(x_i, i=i, memory=memory)
+            # i += 1
 
         print("continuation", piece)
 
         # Emotion score
         reward = torch.softmax(self.emotion_classifier(piece), dim=1)
-        reward = 2.0  * reward.squeeze()[self.emotion] - 1.0
+        reward = 2.0 * reward.squeeze()[self.emotion] - 1.0
 
         print("reward", reward)
         return reward
