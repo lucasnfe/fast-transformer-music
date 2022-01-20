@@ -168,7 +168,8 @@ class MCTS:
                 u = self.Qsa[(s, token)] + self.c * self.Ps[s][token] * np.sqrt(self.Ns[s]) / (
                         1 + self.Nsa[(s, token)])
             else:
-                u = self.c * self.Ps[s][token] * np.sqrt(self.Ns[s] + eps)  # Q = 0 ?
+                return token
+                # u = self.c * self.Ps[s][token] * np.sqrt(self.Ns[s] + eps)  # Q = 0 ?
 
             if u > cur_best:
                 cur_best = u
