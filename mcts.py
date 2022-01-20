@@ -68,7 +68,7 @@ class MCTS:
         return torch.cat((state, torch.tensor([[token]]).to(self.device)), dim=1)
 
     def _is_terminal(self, state):
-        return state.shape[-1] >= self.seq_len or int(state[-1,-1]) == END_TOKEN
+        return state.shape[-1] >= self.seq_len or state[-1,-1] == END_TOKEN
 
     def _get_string_representation(self, state):
         return " ".join([str(int(token)) for token in state[-1]])
@@ -132,7 +132,7 @@ class MCTS:
             y_i, memory = self.recurent_language_model(x_i, i=i, memory=memory)
 
         i = piece_len
-        while piece.shape[-1] % 128 != 0 or self._is_terminal(piece):
+        while (piece.shape[-1] % 128 != 0) or (not self._is_terminal(piece)):
             # Sample new token
             if self.k > 0:
                 y_i = filter_top_k(y_i, self.k)
