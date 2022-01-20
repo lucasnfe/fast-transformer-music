@@ -164,16 +164,17 @@ class MCTS:
         cur_best = -float('inf')
         best_token = -1
 
-        for token in range(self.vocab_size):
-            if self.Ps[s][token] > 0:
-                if (s, token) in self.Qsa:
-                    u = self.Qsa[(s, token)] + self.c * self.Ps[s][token] * np.sqrt(self.Ns[s]) / (
-                            1 + self.Nsa[(s, token)])
-                else:
-                    u = self.c * self.Ps[s][token] * np.sqrt(self.Ns[s] + eps)  # Q = 0 ?
+        top_k_filtered_tokens = np.where(self.Ps[s].cpu().numpy() > 0)[0]
 
-                if u > cur_best:
-                    cur_best = u
-                    best_token = token
+        for token in top_k_filtered_tokens:
+            if (s, token) in self.Qsa:
+                u = self.Qsa[(s, token)] + self.c * self.Ps[s][token] * np.sqrt(self.Ns[s]) / (
+                        1 + self.Nsa[(s, token)])
+            else:
+                u = self.c * self.Ps[s][token] * np.sqrt(self.Ns[s] + eps)  # Q = 0 ?
+
+            if u > cur_best:
+                cur_best = u
+                best_token = token
 
         return best_token

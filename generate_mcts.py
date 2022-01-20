@@ -100,6 +100,7 @@ if __name__ == "__main__":
     parser.add_argument('--lm', type=str, required=True, help="Path to load language model from.")
     parser.add_argument('--clf', type=str, required=True, help="Path to load emotion classifier from.")
     parser.add_argument('--emotion', type=int, required=True, help="Piece emotion.")
+    parser.add_argument('--roll_steps', type=int, default=30, help="Number rollout steps.")
     parser.add_argument('--k', type=int, default=0, help="Number k of elements to consider while sampling.")
     parser.add_argument('--c', type=float, default=1.0, help="Constant c for puct.")
     parser.add_argument('--vocab_size', type=int, required=True, help="Vocabulary size.")
@@ -128,6 +129,6 @@ if __name__ == "__main__":
     prime = [START_TOKEN]
     prime = torch.tensor(prime).unsqueeze(dim=0).to(device)
 
-    piece = generate(language_model, recurent_language_model, emotion_classifier, opt.emotion, opt.seq_len, opt.vocab_size, prime, k=opt.k, c=opt.c)
+    piece = generate(language_model, recurent_language_model, emotion_classifier, opt.emotion, opt.seq_len, opt.vocab_size, prime, opt.roll_steps, k=opt.k, c=opt.c)
     decode_midi(piece, opt.save_to)
     print(piece)
