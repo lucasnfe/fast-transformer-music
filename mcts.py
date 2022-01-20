@@ -9,7 +9,6 @@ END_TOKEN = 389
 class MCTS:
     "Monte Carlo tree searcher. First rollout the tree then choose a move."
     def __init__(self, language_model, recurent_language_model, emotion_classifier, emotion, vocab_size, device, seq_len=512, temperature=1.0, k=0, c=1):
-
         self.Qsa = {} # stores Q values for s,a (as defined in the paper)
         self.Nsa = {} # stores #times edge s,a was visited
         self.Ps  = {} # stores language model policy
@@ -133,7 +132,7 @@ class MCTS:
             y_i, memory = self.recurent_language_model(x_i, i=i, memory=memory)
 
         i = piece_len
-        while piece.shape[-1] % 128 != 0:
+        while piece.shape[-1] % 128 != 0 or self._is_terminal(piece):
             # Sample new token
             if self.k > 0:
                 y_i = filter_top_k(y_i, self.k)
