@@ -109,6 +109,8 @@ class MCTS:
             self.Qsa[(s, token)] = value
             self.Nsa[(s, token)] = 1
 
+        self.Ns[s] += 1
+
         return value
 
     def _expand(self, state):
