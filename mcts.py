@@ -54,7 +54,7 @@ class MCTS:
         "Choose the best successor of node. (Choose a move in the game)"
         s = self._get_string_representation(state)
 
-        N = np.array([self.Qsa[(s, token)]/self.Nsa[(s, token)] if (s, token) in self.Nsa else float("-inf") for token in range(self.vocab_size)])
+        N = np.array([self.Qsa[(s, token)] if (s, token) in self.Qsa else float("-inf") for token in range(self.vocab_size)])
         print(N)
 
         return np.argmax(N)
