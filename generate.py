@@ -81,7 +81,7 @@ def generate(model, prime, seq_len, k=0, p=0, temperature=1.0):
     for i in range(prime_len, seq_len):
         status_notes, status_velocity, status_time_shift = get_piece_status(piece)
 
-        # y_i = filter_note_off(y_i, status_notes)
+        y_i = filter_note_off(y_i, status_notes)
         # y_i = filter_velocity(y_i, status_velocity)
         # y_i = filter_time_shift(y_i, status_time_shift)
 
@@ -101,6 +101,7 @@ def generate(model, prime, seq_len, k=0, p=0, temperature=1.0):
         event = encoder.Event.from_int(int(x_i))
         if event.type == 'special' and event.value == 1:
             print("End of piece reached...", "stopping...")
+            piece.append(int(x_i))
             break
 
         y_i, memory = model(x_i, i=i, memory=memory)
