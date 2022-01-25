@@ -135,8 +135,6 @@ class MCTS:
 
         i = piece_len
         while (piece.shape[-1] % 128 != 0) and (not self._is_terminal(piece)):
-            y_i = self.language_model(piece)[:,-1,:]
-
             # Sample new token
             if self.k > 0:
                 y_i = filter_top_k(y_i, self.k)
