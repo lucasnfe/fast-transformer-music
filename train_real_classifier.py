@@ -34,7 +34,7 @@ def train(model, train_data, test_data, epochs, lr, save_to):
         epoch_start_time = time.time()
 
         # Train model for one epoch
-        # train_step(model, train_data, epoch, lr, criterion, optimizer)
+        train_step(model, train_data, epoch, lr, criterion, optimizer)
 
         # Evaluate model on test set
         val_accuracy, confusion = evaluate(model, test_data)
