@@ -71,7 +71,7 @@ def train_step(model, train_data, epoch, lr, criterion, optimizer, log_interval=
 
         # Backward pass
         optimizer.zero_grad()
-        loss = criterion(y_hat.view(-1), y)
+        loss = criterion(y_hat.view(-1), y.view(-1))
         loss.backward()
         optimizer.step()
 
