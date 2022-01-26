@@ -146,7 +146,7 @@ class MCTS:
         print("continuation", piece)
 
         # Emotion score
-        clf_scores = torch.zeros(1)
+        clf_scores = torch.zeros(1).to(self.device)
         for clf in self.classifiers:
             y_hat = clf(piece)
 
