@@ -150,8 +150,8 @@ if __name__ == '__main__':
     test_real_data = VGMidiRealFake(opt.test, opt.seq_len, label=1.0, prefix=opt.prefix)
 
     # Load fake data
-    train_fake_data = VGMidiRealFake(opt.train, seq_len=opt.seq_len, label=0.0, prefix=opt.prefix)
-    test_fake_data = VGMidiRealFake(opt.test, seq_len=opt.seq_len, label=0.0, prefix=opt.prefix)
+    train_fake_data = VGMidiRealFake(opt.train_fake, seq_len=opt.seq_len, label=0.0, prefix=opt.prefix)
+    test_fake_data = VGMidiRealFake(opt.test_fake, seq_len=opt.seq_len, label=0.0, prefix=opt.prefix)
 
     # Mix real and fake data
     train_data = torch.utils.data.ConcatDataset((train_real_data, train_fake_data))
