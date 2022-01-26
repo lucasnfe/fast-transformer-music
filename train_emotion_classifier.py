@@ -121,12 +121,6 @@ def evaluate(model, test_data):
 
     return accuracy, confusion
 
-def collate_fn_padd(batch):
-    for example in batch:
-        x,y = example
-        print(x.shape)
-    quit()
-
 if __name__ == '__main__':
     # Parse arguments
     parser = argparse.ArgumentParser(description='train_emotion_classifier.py')

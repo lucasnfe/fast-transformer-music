@@ -34,7 +34,7 @@ def train(model, train_data, test_data, epochs, lr, save_to):
         epoch_start_time = time.time()
 
         # Train model for one epoch
-        train_step(model, train_data, epoch, lr, criterion, optimizer)
+        # train_step(model, train_data, epoch, lr, criterion, optimizer)
 
         # Evaluate model on test set
         val_accuracy, confusion = evaluate(model, test_data)
@@ -71,7 +71,7 @@ def train_step(model, train_data, epoch, lr, criterion, optimizer, log_interval=
 
         # Backward pass
         optimizer.zero_grad()
-        loss = criterion(y_hat.view(-1), y.view(-1))
+        loss = criterion(y_hat.view(-1), y)
         loss.backward()
         optimizer.step()
 
@@ -111,7 +111,7 @@ def evaluate(model, test_data):
             y_hat = model(x)
 
             # the class with the highest energy is what we choose as prediction
-            _, y_hat = torch.max(y_hat.view(-1, 4).data, dim=1)
+            y_hat = torch.round(torch.sigmoid(y_hat))
 
             ys += y.tolist()
             ys_hat += y_hat.tolist()
@@ -120,12 +120,6 @@ def evaluate(model, test_data):
     confusion = confusion_matrix(ys, ys_hat)
 
     return accuracy, confusion
-
-def collate_fn_padd(batch):
-    for example in batch:
-        x,y = example
-        print(x.shape)
-    quit()
 
 if __name__ == '__main__':
     # Parse arguments
