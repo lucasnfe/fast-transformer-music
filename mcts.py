@@ -8,7 +8,7 @@ END_TOKEN = 389
 
 class MCTS:
     "Monte Carlo tree searcher. First rollout the tree then choose a move."
-    def __init__(self, language_model, recurent_language_model, emotion_classifier, emotion, vocab_size, device, seq_len=512, temperature=1.0, k=0, c=1):
+    def __init__(self, language_model, recurent_language_model, classifiers, emotion, vocab_size, device, seq_len=512, temperature=1.0, k=0, c=1):
         self.Qsa = {} # stores Q values for s,a (as defined in the paper)
         self.Nsa = {} # stores #times edge s,a was visited
         self.Ps  = {} # stores language model policy
@@ -16,7 +16,7 @@ class MCTS:
 
         self.language_model = language_model
         self.recurent_language_model = recurent_language_model
-        self.emotion_classifier = emotion_classifier
+        self.classifiers = classifiers
         self.emotion = emotion
         self.device = device
 
@@ -146,8 +146,20 @@ class MCTS:
         print("continuation", piece)
 
         # Emotion score
-        reward = torch.softmax(self.emotion_classifier(piece), dim=1)
-        reward = 2.0 * reward.squeeze()[self.emotion] - 1.0
+        clf_scores = torch.zeros(1)
+        for clf in self.classifiers:
+            y_hat = clf(piece)
+
+            if y_hat.shape[-1] == 1:
+                clf_scores += torch.sigmoid(y_hat).squeeze()
+            else:
+                clf_scores += torch.softmax(y_hat, dim=1)[:,self.emotion].squeeze()
+
+        min_score = 0
+        max_score = len(self.classifiers)
+
+        reward_fn = lambda x,a,b,c,d: (x - a) * (d - c) / (b - a) + c
+        reward = reward_fn(clf_scores, min_score, max_score, -1, 1)
 
         print("reward", reward)
         return reward
