@@ -2,7 +2,7 @@ import torch
 import numpy as np
 import plotext as plt
 
-from generate import filter_top_k, sample_tokens
+from generate import *
 
 END_TOKEN = 389
 
@@ -130,6 +130,9 @@ class MCTS:
 
         i = piece_len
         while (piece.shape[-1] % 128 != 0) and (not self._is_terminal(piece)):
+            status_notes, _, _ = get_piece_status(piece[-1].tolist())
+            y_i = filter_note_off(y_i, status_notes)
+
             # Sample new token
             if self.k > 0:
                 y_i = filter_top_k(y_i, self.k)
