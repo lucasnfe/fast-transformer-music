@@ -50,6 +50,20 @@ class MCTS:
 
         plt.show()
 
+    # def choose(self, state):
+    #     "Choose the best successor of node. (Choose a move in the game)"
+    #     s = self._get_string_representation(state)
+    #
+    #     N = np.array([self.Nsa[(s, token)] if (s, token) in self.Nsa else 0 for token in range(self.vocab_size)])
+    #     print(N)
+    #     N = N**(1./self.temperature)
+    #     N = N/np.sum(N)
+    #
+    #     self.diff_distros(self.Ps[s].cpu().numpy(), N)
+    #
+    #     next_token = np.random.choice(len(N), p=N)
+    #     return next_token
+
     def choose(self, state):
         "Choose the best successor of node. (Choose a move in the game)"
         s = self._get_string_representation(state)
@@ -111,13 +125,18 @@ class MCTS:
     def _expand(self, state):
         #print("\t expand:", state)
         y_i = self.language_model(state)[:,-1,:]
+
+        status_notes, _, _ = get_piece_status(state[-1].tolist())
+        y_i = filter_note_off(y_i, status_notes)
+
         if self.k > 0:
             y_i = filter_top_k(y_i, self.k)
+
         y_i = torch.softmax(y_i, dim=1)
 
         return y_i.squeeze()
 
-    def _reward(self, state, prob):
+    def _rollout(self, state, depth=32):
         "Returns the reward for a random simulation (to completion) of `node`"
         memory = None
         piece = torch.clone(state)
@@ -129,7 +148,7 @@ class MCTS:
             y_i, memory = self.recurent_language_model(x_i, i=i, memory=memory)
 
         i = piece_len
-        while (piece.shape[-1] % 128 != 0) and (not self._is_terminal(piece)):
+        while (piece.shape[-1] % depth != 0) and (not self._is_terminal(piece)):
             status_notes, _, _ = get_piece_status(piece[-1].tolist())
             y_i = filter_note_off(y_i, status_notes)
 
@@ -146,12 +165,17 @@ class MCTS:
             y_i, memory = self.recurent_language_model(x_i, i=i, memory=memory)
             i += 1
 
-        print("continuation", piece)
+        return piece
+
+    def _reward(self, state, prob):
+        "Returns the reward for a random simulation (to completion) of `node`"
+        state = self._rollout(state)
+        print("continuation", state)
 
         # Emotion score
         clf_scores = torch.zeros(1).to(self.device)
         for clf in self.classifiers:
-            y_hat = clf(piece)
+            y_hat = clf(state)
 
             if y_hat.shape[-1] == 1:
                 clf_scores += torch.sigmoid(y_hat).squeeze()

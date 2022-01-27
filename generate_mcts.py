@@ -99,7 +99,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='genrate_mcts.py')
     parser.add_argument('--lm', type=str, required=True, help="Path to load language model from.")
     parser.add_argument('--clf_emotion', type=str, required=True, help="Path to load emotion classifier from.")
-    parser.add_argument('--clf_real', type=str, required=True, help="Path to load real/fake classifier from.")
+    parser.add_argument('--clf_real', type=str, required=False, help="Path to load real/fake classifier from.")
     parser.add_argument('--emotion', type=int, required=True, help="Piece emotion.")
     parser.add_argument('--roll_steps', type=int, default=30, help="Number rollout steps.")
     parser.add_argument('--k', type=int, default=0, help="Number k of elements to consider while sampling.")
@@ -126,16 +126,21 @@ if __name__ == "__main__":
     language_model = load_language_model(opt.lm, opt.vocab_size, opt.d_query, opt.n_layers, opt.n_heads, opt.seq_len)
     recurent_language_model = load_recurent_language_model(opt.lm, opt.vocab_size, opt.d_query, opt.n_layers, opt.n_heads, opt.seq_len)
 
+    classifiers = []
+
     # Load emotion classifier
     emotion_classifier = load_classifier(opt.clf_emotion, opt.vocab_size, opt.d_query, opt.n_layers, opt.n_heads, opt.seq_len, output_size=4)
+    classifiers.append(emotion_classifier)
 
     # Load real classifier
-    real_classifier = load_classifier(opt.clf_real, opt.vocab_size, opt.d_query, opt.n_layers, opt.n_heads, opt.seq_len, output_size=1)
+    if opt.clf_real:
+        real_classifier = load_classifier(opt.clf_real, opt.vocab_size, opt.d_query, opt.n_layers, opt.n_heads, opt.seq_len, output_size=1)
+        classifiers.append(real_classifier)
 
     # Define prime sequence
     prime = [START_TOKEN]
     prime = torch.tensor(prime).unsqueeze(dim=0).to(device)
 
-    piece = generate(language_model, recurent_language_model, (emotion_classifier, real_classifier), opt.emotion, opt.seq_len, opt.vocab_size, prime, opt.roll_steps, k=opt.k, c=opt.c)
+    piece = generate(language_model, recurent_language_model, classifiers, opt.emotion, opt.seq_len, opt.vocab_size, prime, opt.roll_steps, k=opt.k, c=opt.c)
     decode_midi(piece, opt.save_to)
     print(piece)
