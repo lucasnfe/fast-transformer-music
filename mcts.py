@@ -123,16 +123,20 @@ class MCTS:
         return value
 
     def _expand(self, state):
-        #print("\t expand:", state)
-        y_i = self.language_model(state)[:,-1,:]
+        memory = None
+
+        # Process current state
+        state_len = state.shape[1]
+        for i in range(state_len):
+            x_i = state[:,i:i+1]
+            y_i, memory = self.recurent_language_model(x_i, i=i, memory=memory)
 
         status_notes, _, _ = get_piece_status(state[-1].tolist())
         y_i = filter_note_off(y_i, status_notes)
 
+        # Sample new token
         if self.k > 0:
             y_i = filter_top_k(y_i, self.k)
-
-        y_i = torch.softmax(y_i, dim=1)
 
         return y_i.squeeze()
 
