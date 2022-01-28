@@ -92,13 +92,13 @@ class MCTS:
 
         if s not in self.Ps:
             # leaf node
-            self.Ps[s] = self._expand(state)
+            self.Ps[s], memory = self._expand(state)
             self.Ns[s] = 0
 
             # self.Qsa[s] = torch.zeros(self.vocab_size).to(self.device)
             # self.Nsa[s] = torch.zeros(self.vocab_size).to(self.device)
 
-            value = self._reward(state, prob)
+            value = self._reward(state, self.Ps[s].unsqueeze(dim=0), memory)
             return value
 
         # Select next token
@@ -138,20 +138,15 @@ class MCTS:
         if self.k > 0:
             y_i = filter_top_k(y_i, self.k)
 
-        return y_i.squeeze()
+        return y_i.squeeze(), memory
 
-    def _rollout(self, state, depth=32):
+    def _rollout(self, state, y_i, memory, depth=32):
         "Returns the reward for a random simulation (to completion) of `node`"
-        memory = None
         piece = torch.clone(state)
 
         # Process current state
-        piece_len = piece.shape[1]
-        for i in range(piece_len):
-            x_i = piece[:,i:i+1]
-            y_i, memory = self.recurent_language_model(x_i, i=i, memory=memory)
+        i = piece.shape[1]
 
-        i = piece_len
         while (piece.shape[-1] % depth != 0) and (not self._is_terminal(piece)):
             status_notes, _, _ = get_piece_status(piece[-1].tolist())
             y_i = filter_note_off(y_i, status_notes)
@@ -171,9 +166,9 @@ class MCTS:
 
         return piece
 
-    def _reward(self, state, prob):
+    def _reward(self, state, y_i, memory):
         "Returns the reward for a random simulation (to completion) of `node`"
-        state = self._rollout(state)
+        state = self._rollout(state, y_i, memory)
         print("continuation", state)
 
         # Emotion score
