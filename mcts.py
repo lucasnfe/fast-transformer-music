@@ -82,17 +82,17 @@ class MCTS:
     def _get_string_representation(self, state):
         return " ".join([str(int(token)) for token in state[-1]])
 
-    def step(self, state, prob):
+    def step(self, state, y_i, memory):
         s = self._get_string_representation(state)
 
         "Make the tree one layer better. (Train for one iteration.)"
         if self._is_terminal(state):
-            value = self._reward(state, prob)
+            value = self._reward(state, self.Ps[s].unsqueeze(dim=0), memory)
             return value
 
         if s not in self.Ps:
             # leaf node
-            self.Ps[s], memory = self._expand(state)
+            self.Ps[s] = self._expand(state, y_i)
             self.Ns[s] = 0
 
             # self.Qsa[s] = torch.zeros(self.vocab_size).to(self.device)
@@ -107,8 +107,11 @@ class MCTS:
         # Recursevily call step until a leaf node is found
         next_state = self._get_next_state(state, token)
 
+        i = next_state.shape[-1] - 1
+        next_y_i, next_memory = self.recurent_language_model(next_state[:,i:i+1], i=i, memory=memory)
+
         #print("\t selected:", token)
-        value = self.step(next_state, prob + torch.log(self.Ps[s][token]))
+        value = self.step(next_state, next_y_i, next_memory)
 
         if (s, token) in self.Qsa:
             self.Qsa[(s, token)] = (self.Nsa[(s, token)] * self.Qsa[(s, token)] + value) / (self.Nsa[(s, token)] + 1)
@@ -122,15 +125,7 @@ class MCTS:
 
         return value
 
-    def _expand(self, state):
-        memory = None
-
-        # Process current state
-        state_len = state.shape[1]
-        for i in range(state_len):
-            x_i = state[:,i:i+1]
-            y_i, memory = self.recurent_language_model(x_i, i=i, memory=memory)
-
+    def _expand(self, state, y_i):
         status_notes, _, _ = get_piece_status(state[-1].tolist())
         y_i = filter_note_off(y_i, status_notes)
 
@@ -138,17 +133,18 @@ class MCTS:
         if self.k > 0:
             y_i = filter_top_k(y_i, self.k)
 
-        return y_i.squeeze(), memory
+        return y_i.squeeze()
 
-    def _rollout(self, state, y_i, memory, depth=32):
+    def _rollout(self, state, y_i, memory, depth=64):
         "Returns the reward for a random simulation (to completion) of `node`"
-        piece = torch.clone(state)
+        roll_state = torch.clone(state)
+        roll_memory = list(memory)
 
         # Process current state
-        i = piece.shape[1]
+        i = roll_state.shape[-1]
 
-        while (piece.shape[-1] % depth != 0) and (not self._is_terminal(piece)):
-            status_notes, _, _ = get_piece_status(piece[-1].tolist())
+        while (roll_state.shape[-1] % depth != 0) and (not self._is_terminal(roll_state)):
+            status_notes, _, _ = get_piece_status(roll_state[-1].tolist())
             y_i = filter_note_off(y_i, status_notes)
 
             # Sample new token
@@ -159,12 +155,12 @@ class MCTS:
             x_i = sample_tokens(y_i)
 
             # Concatenate to current state
-            piece = torch.cat((piece, x_i), dim=1)
+            roll_state = torch.cat((roll_state, x_i), dim=1)
 
-            y_i, memory = self.recurent_language_model(x_i, i=i, memory=memory)
+            y_i, roll_memory = self.recurent_language_model(x_i, i=i, memory=roll_memory)
             i += 1
 
-        return piece
+        return roll_state
 
     def _reward(self, state, y_i, memory):
         "Returns the reward for a random simulation (to completion) of `node`"
