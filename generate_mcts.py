@@ -80,14 +80,7 @@ def generate(language_model, recurent_language_model, classifiers, emotion, seq_
 
             for step in range(roll_steps):
                 print("Rollout: %d" % step)
-                memory = None
-
-                # Process current state
-                piece_len = piece.shape[-1]
-                for i in range(piece_len):
-                    y_i, memory = recurent_language_model(piece[:,i:i+1], i=i, memory=memory)
-
-                tree.step(piece, y_i, memory)
+                tree.step(piece, prob=np.log(1e-8))
 
             # Choose next state
             token = tree.choose(piece)
