@@ -80,7 +80,7 @@ def generate(language_model, recurent_language_model, classifiers, emotion, seq_
 
             for step in range(roll_steps):
                 print("Rollout: %d" % step)
-                tree.step(piece, prob=np.log(1e-8))
+                tree.step(piece)
 
             # Choose next state
             token = tree.choose(piece)

@@ -50,28 +50,29 @@ class MCTS:
 
         plt.show()
 
-    # def choose(self, state):
-    #     "Choose the best successor of node. (Choose a move in the game)"
-    #     s = self._get_string_representation(state)
-    #
-    #     N = np.array([self.Nsa[(s, token)] if (s, token) in self.Nsa else 0 for token in range(self.vocab_size)])
-    #     print(N)
-    #     N = N**(1./self.temperature)
-    #     N = N/np.sum(N)
-    #
-    #     self.diff_distros(self.Ps[s].cpu().numpy(), N)
-    #
-    #     next_token = np.random.choice(len(N), p=N)
-    #     return next_token
-
     def choose(self, state):
         "Choose the best successor of node. (Choose a move in the game)"
         s = self._get_string_representation(state)
 
-        N = np.array([self.Qsa[(s, token)] if (s, token) in self.Qsa else float("-inf") for token in range(self.vocab_size)])
+        N = np.array([self.Nsa[(s, token)] if (s, token) in self.Nsa else 0 for token in range(self.vocab_size)])
         print(N)
+        N = N**(1./self.temperature)
+        N = N/np.sum(N)
 
-        return np.argmax(N)
+        self.diff_distros(self.Ps[s].cpu().numpy(), N)
+
+        next_token = np.random.choice(len(N), p=N)
+        return next_token
+        # return np.argmax(N)
+
+    # def choose(self, state):
+    #     "Choose the best successor of node. (Choose a move in the game)"
+    #     s = self._get_string_representation(state)
+    #
+    #     N = np.array([self.Qsa[(s, token)] if (s, token) in self.Qsa else float("-inf") for token in range(self.vocab_size)])
+    #     print(N)
+    #
+    #     return np.argmax(N)
 
     def _get_next_state(self, state, token):
         return torch.cat((state, torch.tensor([[token]]).to(self.device)), dim=1)
@@ -82,12 +83,12 @@ class MCTS:
     def _get_string_representation(self, state):
         return " ".join([str(int(token)) for token in state[-1]])
 
-    def step(self, state, prob):
+    def step(self, state):
         s = self._get_string_representation(state)
 
         "Make the tree one layer better. (Train for one iteration.)"
         if self._is_terminal(state):
-            value = self._reward(state, prob)
+            value = self._reward(state)
             return value
 
         if s not in self.Ps:
@@ -98,7 +99,7 @@ class MCTS:
             # self.Qsa[s] = torch.zeros(self.vocab_size).to(self.device)
             # self.Nsa[s] = torch.zeros(self.vocab_size).to(self.device)
 
-            value = self._reward(state, prob)
+            value = self._reward(state)
             return value
 
         # Select next token
@@ -108,7 +109,7 @@ class MCTS:
         next_state = self._get_next_state(state, token)
 
         #print("\t selected:", token)
-        value = self.step(next_state, prob + torch.log(self.Ps[s][token]))
+        value = self.step(next_state)
 
         if (s, token) in self.Qsa:
             self.Qsa[(s, token)] = (self.Nsa[(s, token)] * self.Qsa[(s, token)] + value) / (self.Nsa[(s, token)] + 1)
@@ -142,19 +143,23 @@ class MCTS:
 
         return y_i.squeeze()
 
-    def _rollout(self, state, depth=32):
+    def _rollout(self, state, depth=128):
         "Returns the reward for a random simulation (to completion) of `node`"
         memory = None
         piece = torch.clone(state)
 
         # Process current state
-        piece_len = piece.shape[1]
-        for i in range(piece_len):
+        log_prob = torch.zeros(1).to(self.device)
+        for i in range(piece.shape[1]):
             x_i = piece[:,i:i+1]
+
+            if i > 0:
+                log_prob += torch.log(torch.softmax(y_i, dim=1)[:,x_i.squeeze()])
+
             y_i, memory = self.recurent_language_model(x_i, i=i, memory=memory)
 
-        i = piece_len
-        while (piece.shape[-1] % depth != 0) and (not self._is_terminal(piece)):
+        i = piece.shape[1]
+        while (i % depth != 0) and (not self._is_terminal(piece)):
             status_notes, _, _ = get_piece_status(piece[-1].tolist())
             y_i = filter_note_off(y_i, status_notes)
 
@@ -165,34 +170,37 @@ class MCTS:
             # sample new token
             x_i = sample_tokens(y_i)
 
+            # Accumulate probability
+            log_prob += torch.log(torch.softmax(y_i, dim=1)[:,x_i.squeeze()])
+
             # Concatenate to current state
             piece = torch.cat((piece, x_i), dim=1)
 
             y_i, memory = self.recurent_language_model(x_i, i=i, memory=memory)
             i += 1
 
-        return piece
+        return piece, log_prob
 
-    def _reward(self, state, prob):
+    def _reward(self, state):
         "Returns the reward for a random simulation (to completion) of `node`"
-        state = self._rollout(state)
+        # roll_state, roll_log_prob = self._rollout(state)
         print("continuation", state)
 
         # Emotion score
-        clf_scores = torch.zeros(1).to(self.device)
+        clf_scores = torch.ones(1).to(self.device)
         for clf in self.classifiers:
             y_hat = clf(state)
 
             if y_hat.shape[-1] == 1:
-                clf_scores += torch.sigmoid(y_hat).squeeze()
+                clf_scores *= torch.sigmoid(y_hat).squeeze()
             else:
-                clf_scores += torch.softmax(y_hat, dim=1)[:,self.emotion].squeeze()
+                clf_scores *= torch.softmax(y_hat, dim=1)[:,self.emotion].squeeze()
 
-        min_score = 0
-        max_score = len(self.classifiers)
+        min_score = 0.0
+        max_score = 1.0
 
         reward_fn = lambda x,a,b,c,d: (x - a) * (d - c) / (b - a) + c
-        reward = reward_fn(clf_scores, min_score, max_score, -1, 1)
+        reward = reward_fn(clf_scores, min_score, max_score, -1.0, 1.0)
 
         print("reward", reward)
         return reward
