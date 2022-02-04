@@ -113,7 +113,7 @@ if __name__ == "__main__":
     classifiers = []
 
     # Load emotion classifier
-    emotion_classifier = load_classifier(opt.clf_emotion, opt.vocab_size, opt.d_query, opt.n_layers, opt.n_heads, opt.seq_len, output_size=4)
+    emotion_classifier = load_classifier(opt.clf, opt.vocab_size, opt.d_query, opt.n_layers, opt.n_heads, opt.seq_len, output_size=4)
     classifiers.append(emotion_classifier)
 
     # Define prime sequence
