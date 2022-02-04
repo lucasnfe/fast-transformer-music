@@ -29,21 +29,6 @@ def load_language_model(model, vocab_size, d_query, n_layers, n_heads, seq_len):
 
     return language_model
 
-def load_recurent_language_model(model, vocab_size, d_query, n_layers, n_heads, seq_len):
-    recurent_language_model = RecurrentMusicGenerator(n_tokens=vocab_size,
-                                     d_query=d_query,
-                                     d_model=d_query * n_heads,
-                                     seq_len=seq_len,
-                              attention_type="linear",
-                                    n_layers=n_layers,
-                                     n_heads=n_heads).to(device)
-
-    # Load model
-    recurent_language_model.load_state_dict(torch.load(model, map_location=device)["model_state"])
-    recurent_language_model.eval()
-
-    return recurent_language_model
-
 def load_classifier(model, vocab_size, d_query, n_layers, n_heads, seq_len, output_size=1):
     # Load Emotion Classifier
     emotion_classifier = MusicEmotionClassifier(n_tokens=vocab_size,
@@ -63,14 +48,14 @@ def load_classifier(model, vocab_size, d_query, n_layers, n_heads, seq_len, outp
 
     return emotion_classifier
 
-def generate(language_model, recurent_language_model, classifiers, emotion, seq_len, vocab_size, piece, roll_steps=30, temperature=1.0, k=0, c=1.0):
+def generate(language_model, recurent_language_model, classifiers, emotion, gen_len, vocab_size, piece, roll_steps=30, temperature=1.0, k=0, c=1.0):
     tree = MCTS(language_model,
                 recurent_language_model,
                 classifiers,
                 emotion,
                 vocab_size,
                 device,
-                seq_len,
+                gen_len,
                 temperature, k, c)
 
     # Init mucts
@@ -98,14 +83,14 @@ if __name__ == "__main__":
     # Parse arguments
     parser = argparse.ArgumentParser(description='genrate_mcts.py')
     parser.add_argument('--lm', type=str, required=True, help="Path to load language model from.")
-    parser.add_argument('--clf_emotion', type=str, required=True, help="Path to load emotion classifier from.")
-    parser.add_argument('--clf_real', type=str, required=False, help="Path to load real/fake classifier from.")
+    parser.add_argument('--clf', type=str, required=True, help="Path to load emotion classifier from.")
     parser.add_argument('--emotion', type=int, required=True, help="Piece emotion.")
     parser.add_argument('--roll_steps', type=int, default=30, help="Number rollout steps.")
     parser.add_argument('--k', type=int, default=0, help="Number k of elements to consider while sampling.")
     parser.add_argument('--c', type=float, default=1.0, help="Constant c for puct.")
     parser.add_argument('--vocab_size', type=int, required=True, help="Vocabulary size.")
     parser.add_argument('--seq_len', type=int, required=True, help="Max sequence to process.")
+    parser.add_argument('--gen_len', type=int, default=512, help="Max sequence to process.")
     parser.add_argument('--n_layers', type=int, default=4, help="Number of transformer layers.")
     parser.add_argument('--d_query', type=int, default=32, help="Dimension of the query matrix.")
     parser.add_argument('--n_heads', type=int, default=8, help="Number of attention heads.")
@@ -124,7 +109,6 @@ if __name__ == "__main__":
 
     # Load language models
     language_model = load_language_model(opt.lm, opt.vocab_size, opt.d_query, opt.n_layers, opt.n_heads, opt.seq_len)
-    recurent_language_model = load_recurent_language_model(opt.lm, opt.vocab_size, opt.d_query, opt.n_layers, opt.n_heads, opt.seq_len)
 
     classifiers = []
 
@@ -132,15 +116,10 @@ if __name__ == "__main__":
     emotion_classifier = load_classifier(opt.clf_emotion, opt.vocab_size, opt.d_query, opt.n_layers, opt.n_heads, opt.seq_len, output_size=4)
     classifiers.append(emotion_classifier)
 
-    # Load real classifier
-    if opt.clf_real:
-        real_classifier = load_classifier(opt.clf_real, opt.vocab_size, opt.d_query, opt.n_layers, opt.n_heads, opt.seq_len, output_size=1)
-        classifiers.append(real_classifier)
-
     # Define prime sequence
     prime = [START_TOKEN]
     prime = torch.tensor(prime).unsqueeze(dim=0).to(device)
 
-    piece = generate(language_model, recurent_language_model, classifiers, opt.emotion, opt.seq_len, opt.vocab_size, prime, opt.roll_steps, k=opt.k, c=opt.c)
+    piece = generate(language_model, recurent_language_model, classifiers, opt.emotion, opt.gen_len, opt.vocab_size, prime, opt.roll_steps, k=opt.k, c=opt.c)
     decode_midi(piece, opt.save_to)
     print(piece)

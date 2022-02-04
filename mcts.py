@@ -8,7 +8,7 @@ END_TOKEN = 389
 
 class MCTS:
     "Monte Carlo tree searcher. First rollout the tree then choose a move."
-    def __init__(self, language_model, recurent_language_model, classifiers, emotion, vocab_size, device, seq_len=512, temperature=1.0, k=0, c=1):
+    def __init__(self, language_model, recurent_language_model, classifiers, emotion, vocab_size, device, gen_len=512, temperature=1.0, k=0, c=1):
         self.Qsa = {} # stores Q values for s,a (as defined in the paper)
         self.Nsa = {} # stores #times edge s,a was visited
         self.Ps  = {} # stores language model policy
@@ -22,7 +22,7 @@ class MCTS:
 
         self.k = k
         self.c = c
-        self.seq_len = seq_len
+        self.gen_len = gen_len
         self.vocab_size = vocab_size
         self.temperature = temperature
 
@@ -78,7 +78,7 @@ class MCTS:
         return torch.cat((state, torch.tensor([[token]]).to(self.device)), dim=1)
 
     def _is_terminal(self, state):
-        return state.shape[-1] >= self.seq_len or state[-1,-1] == END_TOKEN
+        return state.shape[-1] >= self.gen_len or state[-1,-1] == END_TOKEN
 
     def _get_string_representation(self, state):
         return " ".join([str(int(token)) for token in state[-1]])
@@ -125,13 +125,7 @@ class MCTS:
 
     def _expand(self, state):
         #print("\t expand:", state)
-        memory = None
-
-        # Process current state
-        state_len = state.shape[1]
-        for i in range(state_len):
-            x_i = state[:,i:i+1]
-            y_i, memory = self.recurent_language_model(x_i, i=i, memory=memory)
+        y_i = self.language_model(state)[:,-1,:]
 
         status_notes, _, _ = get_piece_status(state[-1].tolist())
         y_i = filter_note_off(y_i, status_notes)
