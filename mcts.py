@@ -8,14 +8,13 @@ END_TOKEN = 389
 
 class MCTS:
     "Monte Carlo tree searcher. First rollout the tree then choose a move."
-    def __init__(self, language_model, recurent_language_model, classifiers, emotion, vocab_size, device, gen_len=512, temperature=1.0, k=0, c=1):
+    def __init__(self, language_model, classifiers, emotion, vocab_size, device, gen_len=512, temperature=1.0, k=0, c=1):
         self.Qsa = {} # stores Q values for s,a (as defined in the paper)
         self.Nsa = {} # stores #times edge s,a was visited
         self.Ps  = {} # stores language model policy
         self.Ns  = {}
 
         self.language_model = language_model
-        self.recurent_language_model = recurent_language_model
         self.classifiers = classifiers
         self.emotion = emotion
         self.device = device

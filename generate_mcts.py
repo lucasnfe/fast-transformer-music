@@ -48,9 +48,8 @@ def load_classifier(model, vocab_size, d_query, n_layers, n_heads, seq_len, outp
 
     return emotion_classifier
 
-def generate(language_model, recurent_language_model, classifiers, emotion, gen_len, vocab_size, piece, roll_steps=30, temperature=1.0, k=0, c=1.0):
+def generate(language_model, classifiers, emotion, gen_len, vocab_size, piece, roll_steps=30, temperature=1.0, k=0, c=1.0):
     tree = MCTS(language_model,
-                recurent_language_model,
                 classifiers,
                 emotion,
                 vocab_size,
@@ -110,16 +109,14 @@ if __name__ == "__main__":
     # Load language models
     language_model = load_language_model(opt.lm, opt.vocab_size, opt.d_query, opt.n_layers, opt.n_heads, opt.seq_len)
 
-    classifiers = []
-
     # Load emotion classifier
     emotion_classifier = load_classifier(opt.clf, opt.vocab_size, opt.d_query, opt.n_layers, opt.n_heads, opt.seq_len, output_size=4)
-    classifiers.append(emotion_classifier)
+    classifiers = [emotion_classifier]
 
     # Define prime sequence
     prime = [START_TOKEN]
     prime = torch.tensor(prime).unsqueeze(dim=0).to(device)
 
-    piece = generate(language_model, recurent_language_model, classifiers, opt.emotion, opt.gen_len, opt.vocab_size, prime, opt.roll_steps, k=opt.k, c=opt.c)
+    piece = generate(language_model, classifiers, opt.emotion, opt.gen_len, opt.vocab_size, prime, opt.roll_steps, k=opt.k, c=opt.c)
     decode_midi(piece, opt.save_to)
     print(piece)
